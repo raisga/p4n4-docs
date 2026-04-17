@@ -21,9 +21,9 @@
 
 ## 1. Executive Summary
 
-**p4n4** (pronounced *"pana"*) is a Docker Compose-based open platform for small-to-medium IoT deployments augmented with a first-class Generative AI layer. It takes direct inspiration from the IoTStack TIGUITTO pattern — Telegraf, InfluxDB, Grafana, Mosquitto — but replaces Telegraf with **Node-RED** as the primary data-flow orchestrator, and adds a dedicated **GenAI stack** comprising **n8n**, **Letta**, and **Ollama**.
+**p4n4** (pronounced *"pana"*) is a Docker Compose-based open platform for small-to-medium IoT deployments augmented with an AI layer (Edge and/or Generative). It takes direct inspiration from the IoTStack TIGUITTO — Telegraf, InfluxDB, Grafana, Mosquitto... it also adds a dedicated **GenAI stack** (n8n, Letta, and Ollama) and **EdgeAI stack** (Edge Impulse).
 
-The name *p4n4* reflects the two complementary four-service stacks at the heart of the platform.
+The name *p4n4* represents the two complementary four-service stacks at the heart of the platform and nodes.
 
 ### Design Philosophy
 
@@ -32,7 +32,7 @@ The name *p4n4* reflects the two complementary four-service stacks at the heart 
 | **Open Source First** | Every component is freely available and self-hostable |
 | **Composable** | Stacks can be deployed independently or together |
 | **Docker-native** | Single `docker-compose.yml` per stack with clean overrides |
-| **Edge & Cloud Ready** | Runs on Raspberry Pi class hardware up to cloud VMs |
+| **Edge & Cloud Ready** | Runs from Raspberry Pi class hardware up to cloud VMs |
 | **AI-Augmented IoT** | Sensor data and AI reasoning exist in the same data fabric |
 
 ---
@@ -65,7 +65,7 @@ Node-RED can replicate everything Telegraf does (MQTT → InfluxDB), while addit
 
 The rapid maturation of local LLM inference (Ollama), agentic memory frameworks (Letta), and AI workflow automation (n8n) creates a compelling opportunity: **IoT telemetry can now be semantically understood, summarised, and acted upon by AI agents running entirely on-premise.**
 
-p4n4 treats the GenAI stack not as a separate product but as an integral layer of the IoT platform — connected through Node-RED as the shared data and control plane.
+p4n4 treats the AI stack as an integral layer of the IoT platform — connected through Node-RED as the shared data and control plane.
 
 ---
 
@@ -75,31 +75,67 @@ p4n4 treats the GenAI stack not as a separate product but as an integral layer o
 
 p4n4 is organised into three cooperating stacks sharing a Docker bridge network (`p4n4-net`):
 
-```
-┌─────────────────────────────┐    ┌─────────────────────────────┐
-│      IoT Stack (p4n4-iot)   │    │    GenAI Stack (p4n4-ai)    │
-│                             │    │                             │
-│  Mosquitto  — MQTT Broker   │    │  Ollama   — LLM Inference   │
-│  Node-RED   — Orchestrator  │◄──►│  Letta    — Agent Memory    │
-│  InfluxDB   — Time-Series   │    │  n8n      — AI Workflows    │
-│  Grafana    — Dashboards    │    │                             │
-└─────────────────────────────┘    └─────────────────────────────┘
-              │                                  │
-              └──────────── p4n4-net ────────────┘
-                                  │
-              ┌───────────────────┘
-              │
-┌─────────────────────────────┐
-│  Edge AI Stack (p4n4-edge)  │
-│  Edge Impulse Linux Runner  │
-└─────────────────────────────┘
+```mermaid
+graph LR
+    subgraph iot["IoT Stack - p4n4-iot"]
+        Mosquitto["Mosquitto<br/>MQTT Broker"]
+        NodeRED["Node-RED<br/>Orchestrator"]
+        InfluxDB["InfluxDB<br/>Time-Series"]
+        Grafana["Grafana<br/>Dashboards"]
+    end
+
+    subgraph ai["GenAI Stack - p4n4-ai"]
+        Ollama["Ollama<br/>LLM Inference"]
+        Letta["Letta<br/>Agent Memory"]
+        n8n["n8n<br/>AI Workflows"]
+    end
+
+    subgraph edge["Edge AI Stack - p4n4-edge"]
+        EI["Edge Impulse<br/>Linux Runner"]
+    end
+
+    net(["p4n4-net"])
+
+    NodeRED <--> net
+    net <--> Ollama
+    net <--> Letta
+    net <--> n8n
+    net <--> EI
 ```
 
-Node-RED sits at the intersection of the IoT and GenAI stacks. It subscribes to Mosquitto, normalises and routes data to InfluxDB, and can simultaneously call n8n webhooks or directly query Ollama/Letta APIs when AI reasoning is needed.
+Node-RED sits at the intersection of the IoT and AI stacks. It subscribes to Mosquitto, normalises and routes data to InfluxDB, and can simultaneously call n8n webhooks or directly query Ollama/Letta APIs when AI reasoning is needed.
 
 ### 3.2 High-Level Data Flow
 
+```mermaid
+graph TD
+    devices["IoT Devices"]
+    mosquitto["Mosquitto"]
+    nodered["Node-RED"]
+    influxdb["InfluxDB"]
+    ollama["Ollama"]
+    letta["Letta"]
+    wf["n8n"]
+    grafana["Grafana"]
+    ei["Edge Impulse Runner"]
+
+    devices   -->|MQTT publish| mosquitto
+    mosquitto -->|MQTT subscribe| nodered
+    nodered   -->|write telemetry| influxdb
+    nodered   -->|real-time inference| ollama
+    nodered   -->|agent event logging| letta
+    nodered   -->|trigger workflows| wf
+    nodered   -->|run inference| ei
+    wf        -->|historical queries| influxdb
+    wf        -->|reasoning chains| ollama
+    wf        -->|agent memory| letta
+    wf        -->|run inference| ei
+    ei        -->|inference result| nodered
+    influxdb  -->|dashboard queries| grafana
+    grafana   -->|alert webhooks| wf
 ```
+
+```txt
 IoT Devices
     │  MQTT publish
     ▼
@@ -157,7 +193,7 @@ networks:
 
 Internal DNS examples: `http://influxdb:8086` · `http://ollama:11434` · `http://letta:8283`
 
-GenAI services have no direct inbound ports from the internet — accessible only via Node-RED or n8n on the internal network.
+*AI services have no direct inbound ports from the internet — accessible only via Node-RED or n8n on the internal network.
 
 ### 4.2 Service Communication Matrix
 
@@ -219,11 +255,11 @@ See the [Security reference](docs/security.md) for the full hardening guide incl
 ## 7. Roadmap
 
 ### Phase 1 — Foundation (v0.1)
-- [x] IoT stack: Mosquitto · Node-RED · InfluxDB · Grafana
-- [x] GenAI stack: Ollama · Letta · n8n integrated via Node-RED
-- [x] Edge AI stack: Edge Impulse Linux Runner
-- [x] `p4n4 init`, `up`, `down`, `status`, `validate` CLI commands
-- [x] Published to PyPI as `p4n4`
+- [ ] IoT stack: Mosquitto · Node-RED · InfluxDB · Grafana
+- [ ] GenAI stack: Ollama · Letta · n8n integrated via Node-RED
+- [ ] Edge AI stack: Edge Impulse Linux Runner
+- [ ] `p4n4 init`, `up`, `down`, `status`, `validate` CLI commands
+- [ ] Published to PyPI as `p4n4`
 
 ### Phase 2 — Intelligence Layer (v0.2)
 - [ ] Pre-built Letta agent personas: Site Monitor, Anomaly Analyst, Operator Assistant
@@ -258,6 +294,7 @@ Full technical documentation lives in [`docs/`](docs/):
 | [Template Registry](docs/template-registry.md) | Using and contributing templates |
 | [Security](docs/security.md) | Hardening guide |
 | [Design Document](docs/design.md) | Architecture, data flow, design decisions |
+| [Specifications Roadmap](docs/specs.md) | Feature specs, acceptance criteria, release milestones |
 | [ADR-001](docs/adr/ADR-001.md) | Multi-repository architecture decision record |
 
 ---
