@@ -22,40 +22,55 @@
 
 ## 1. Overview
 
-p4n4 is split across **8 repositories** under the `raisga` GitHub organisation. Each repository
+p4n4 is organised across **12 repositories** under the `raisga` GitHub organisation. Each repository
 has a single, well-defined responsibility and can be developed, versioned, and released
-independently.
+independently. The `p4n4` umbrella repo is a **monorepo** that aggregates all sub-repos as Git
+submodules, grouped by concern.
 
 ```
 raisga/
-├── .github             ← org profile, shared issue templates, org-wide Actions workflows
-├── p4n4                ← umbrella / meta repo (landing page, cross-cutting docs, ADRs)
-├── p4n4-iot            ← IoT stack: Mosquitto · Node-RED · InfluxDB · Grafana
-├── p4n4-ai             ← GenAI stack: Ollama · Letta · n8n
-├── p4n4-edge           ← Edge Impulse inference stack
-├── p4n4-cli            ← Python CLI tool (published to PyPI as `p4n4`)
-├── p4n4-templates      ← community template registry & index
-└── p4n4-docs           ← full technical documentation site (this repo)
+├── .github                 ← org profile, shared issue templates, org-wide Actions workflows
+└── p4n4                    ← umbrella (monorepo with submodules)
+    ├── docker/
+    │   ├── iot             ← p4n4-iot: Mosquitto · Node-RED · InfluxDB · Grafana
+    │   ├── ai              ← p4n4-ai: Ollama · Letta · n8n
+    │   └── edge            ← p4n4-edge: Edge Impulse inference stack
+    ├── shared/
+    │   ├── lib             ← p4n4-lib: shared library (stacks ↔ clients)
+    │   ├── hw              ← p4n4-hw: hardware designs + RPi5 GPIO scripts
+    │   └── templates       ← p4n4-templates: community template registry & index
+    ├── client/
+    │   ├── cli             ← p4n4-cli: Python CLI (published to PyPI as `p4n4`)
+    │   ├── api             ← p4n4-api: REST API gateway
+    │   └── dashboard       ← p4n4-dashboard: web dashboard client
+    ├── demo/
+    │   └── emu             ← p4n4-emu: workstation hardware emulator
+    └── docs                ← p4n4-docs: full technical documentation site (this repo)
 ```
 
 > **Naming note:** The `p4n4` umbrella repo and the `p4n4` PyPI package (from `p4n4-cli`) share
 > the same short name intentionally — the CLI *is* the primary user-facing product. The umbrella
-> repo is the GitHub landing page, not the package source.
+> repo is the GitHub landing page and monorepo root, not the package source.
 
 ---
 
 ## 2. Repository Inventory
 
-| Repo | Type | Standalone? | PyPI / Registry | Description |
-|------|------|-------------|-----------------|-------------|
-| `.github` | org meta | — | — | Org profile README, shared Actions, issue templates |
-| `p4n4` | meta / docs | — | — | Umbrella: architecture, ADRs, cross-cutting issues |
-| `p4n4-iot` | stack | ✓ | — | Docker Compose IoT stack; owns `p4n4-net` bridge |
-| `p4n4-ai` | stack | ✓ | — | Docker Compose GenAI stack; attaches to `p4n4-net` |
-| `p4n4-edge` | stack | ✓ | — | Docker Compose Edge Impulse stack; attaches to `p4n4-net` |
-| `p4n4-cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
-| `p4n4-templates` | registry | — | Git-native | Community template index + example templates |
-| `p4n4-docs` | docs | — | — | Full technical reference; deployable as a static site |
+| Repo | Monorepo path | Type | Standalone? | PyPI / Registry | Description |
+|------|---------------|------|-------------|-----------------|-------------|
+| `.github` | — | org meta | — | — | Org profile README, shared Actions, issue templates |
+| `p4n4` | — | meta / monorepo | — | — | Umbrella: architecture, ADRs, all sub-repos as submodules |
+| `p4n4-iot` | `docker/iot` | stack | ✓ | — | Docker Compose IoT stack; owns `p4n4-net` bridge |
+| `p4n4-ai` | `docker/ai` | stack | ✓ | — | Docker Compose GenAI stack; attaches to `p4n4-net` |
+| `p4n4-edge` | `docker/edge` | stack | ✓ | — | Docker Compose Edge Impulse stack; attaches to `p4n4-net` |
+| `p4n4-lib` | `shared/lib` | library | ✓ | — | Shared library mediating between stacks and clients |
+| `p4n4-hw` | `shared/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
+| `p4n4-templates` | `shared/templates` | registry | — | Git-native | Community template index + example templates |
+| `p4n4-cli` | `client/cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
+| `p4n4-api` | `client/api` | service | ✓ | — | REST API gateway (port 8000) |
+| `p4n4-dashboard` | `client/dashboard` | frontend | ✓ | — | Web dashboard client |
+| `p4n4-emu` | `demo/emu` | tool | ✓ | — | Workstation hardware emulator (Docker resource constraints + QEMU) |
+| `p4n4-docs` | `docs` | docs | — | — | Full technical reference; deployable as a static site |
 
 ---
 
@@ -393,17 +408,88 @@ p4n4-templates/
 
 ```
 p4n4-docs/
-├── README.md
-├── mkdocs.yml                  ← site config (stubbed; docs deploy pending)
-├── docs/                       ← MkDocs source (currently empty; content lives in p4n4/docs/)
+├── README.md                   ← full technical reference
+├── ARCHITECTURE.md             ← this file
+├── mkdocs.yml                  ← site config (deploy pending)
+├── docs/                       ← MkDocs source pages
+│   ├── adr/
+│   │   └── ADR-001.md
+│   ├── diagrams/
+│   │   └── .gitkeep
+│   ├── index.md
+│   ├── getting-started.md
+│   ├── iot-stack.md
+│   ├── ai-stack.md
+│   ├── edge-stack.md
+│   ├── hardware.md
+│   ├── emulator.md
+│   ├── cli-reference.md
+│   ├── template-registry.md
+│   ├── security.md
+│   ├── design.md
+│   └── specs.md
 └── .github/
     └── workflows/
         └── deploy-docs.yml     ← publish to GitHub Pages on push to main
 ```
 
-> **Note:** The cross-cutting documentation (getting-started, stack references, CLI reference, etc.)
-> currently lives in `p4n4/docs/`. It will be migrated into `p4n4-docs/docs/` in a future phase
-> when the MkDocs site is activated.
+### 3.9 `p4n4-hw` (hardware designs and scripts)
+
+KiCad PCB projects and Raspberry Pi 5 GPIO scripts for the p4n4 platform reference hardware.
+
+```
+p4n4-hw/
+├── README.md
+├── LICENSE
+├── dev-board/                  ← KiCad project: main dev board (schematic + PCB)
+├── prototypes/
+│   └── leds-indicator/         ← KiCad project: LED indicator prototype board
+└── scripts/
+    └── rpi5/
+        ├── p4n4_common.py          ← shared GPIO helpers, service catalogue, TCP probe
+        ├── p4n4_boot_sim.py        ← boot sequence simulator (LED blink patterns)
+        ├── p4n4_shutdown_sim.py    ← graceful shutdown simulator
+        ├── p4n4_health_monitor.py  ← service health monitor (TCP probe + GPIO LED)
+        ├── p4n4_button_handler.py  ← physical button (single / double / long press)
+        └── p4n4_mqtt_indicator.py  ← MQTT traffic activity indicator
+```
+
+All RPi5 scripts share a common GPIO pin assignment (GPIO 17 = status LED, GPIO 27 = push button)
+and depend on `RPi.GPIO` plus optionally `paho-mqtt`.
+
+---
+
+### 3.10 `p4n4-emu` (hardware emulator)
+
+Workstation emulator that applies Docker resource constraints per hardware profile so developers
+can test against realistic edge hardware limits without a physical board.
+
+```
+p4n4-emu/
+├── README.md
+├── guide.md                    ← step-by-step setup and LED toggle guide
+├── pyproject.toml
+├── uv.lock
+├── LICENSE
+├── p4n4_emu/
+│   ├── cli.py                  ← Typer entrypoint (p4n4-emu command)
+│   ├── profiles/               ← hardware profile definitions (rpi4, rpi5, nuc, mcu-class)
+│   ├── overlay/                ← Compose overlay generator (deploy.resources.limits)
+│   ├── sim/
+│   │   └── sensor_sim.py       ← synthetic MQTT sensor publisher
+│   └── hw/
+│       └── gpio_stub.py        ← drop-in RPi.GPIO replacement for workstations
+└── tests/
+```
+
+**Hardware profiles:**
+
+| Profile | CPU | Memory | Disk R/W | Arch |
+|---------|-----|--------|----------|------|
+| `rpi4` | 4 cores | 3.5 GB | 50 MB/s | arm64 |
+| `rpi5` | 4 cores | 7 GB | 100 MB/s | arm64 |
+| `mcu-class` | 1 core | 256 MB | 10 MB/s | x86_64 |
+| `nuc` | 4 cores | 14 GB | 200 MB/s | x86_64 |
 
 ---
 

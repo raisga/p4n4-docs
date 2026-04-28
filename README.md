@@ -232,6 +232,8 @@ For per-stack service details, environment variables, and configuration referenc
 
 **Minimum requirements to run the full stack:** 4 GB RAM, 10 GB disk, Docker 24+ with Compose v2, Python 3.11+.
 
+**Workstation emulation:** `p4n4-emu` (in `demo/emu/`) applies Docker resource constraints per hardware profile so your workstation behaves like target edge hardware — no physical board required during development. See the [Emulator reference](docs/emulator.md).
+
 ---
 
 ## 6. Security
@@ -293,6 +295,8 @@ Full technical documentation lives in [`docs/`](docs/):
 | [CLI Reference](docs/cli-reference.md) | All `p4n4` commands |
 | [Template Registry](docs/template-registry.md) | Using and contributing templates |
 | [Security](docs/security.md) | Hardening guide |
+| [Hardware](docs/hardware.md) | p4n4-hw: KiCad designs, RPi5 GPIO scripts |
+| [Emulator](docs/emulator.md) | p4n4-emu: workstation hardware emulation |
 | [Design Document](docs/design.md) | Architecture, data flow, design decisions |
 | [Specifications Roadmap](docs/specs.md) | Feature specs, acceptance criteria, release milestones |
 | [ADR-001](docs/adr/ADR-001.md) | Multi-repository architecture decision record |
