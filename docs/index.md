@@ -24,7 +24,7 @@ p4n4 up
 
 ```
 p4n4/                       (monorepo — you are here)
-├── docker/
+├── stacks/
 │   ├── iot/                ← IoT stack (p4n4-iot)
 │   ├── ai/                 ← GenAI stack (p4n4-ai)
 │   └── edge/               ← Edge AI stack (p4n4-edge)

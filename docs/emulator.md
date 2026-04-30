@@ -64,7 +64,7 @@ uv run p4n4-emu setup --arch arm64
 
 ```bash
 # IoT stack with Raspberry Pi 5 constraints
-uv run p4n4-emu up --stack-dir ~/p4n4/docker/iot --profile rpi5
+uv run p4n4-emu up --stack-dir ~/p4n4/stacks/iot --profile rpi5
 
 # All stacks + synthetic sensor data
 uv run p4n4-emu up --stack all --stack-dir ~/p4n4/docker --profile rpi5 --sim
@@ -73,7 +73,7 @@ uv run p4n4-emu up --stack all --stack-dir ~/p4n4/docker --profile rpi5 --sim
 Use `--dry-run` to inspect the generated overlay before any containers start:
 
 ```bash
-uv run p4n4-emu up --stack-dir ~/p4n4/docker/iot --profile rpi5 --dry-run
+uv run p4n4-emu up --stack-dir ~/p4n4/stacks/iot --profile rpi5 --dry-run
 ```
 
 ### Status and stop

@@ -642,17 +642,17 @@ The CLI enforces startup order via Docker healthcheck polling:
 ```bash
 # Step 1: IoT stack (creates p4n4-net)
 docker network create --driver bridge --subnet 172.20.0.0/16 p4n4-net
-cd docker/iot && cp .env.example .env
+cd stacks/iot && cp .env.example .env
 # edit .env
 docker compose up -d
 
 # Step 2: AI stack
-cd docker/ai && cp .env.example .env
-# INFLUXDB_ADMIN_TOKEN must match docker/iot/.env
+cd stacks/ai && cp .env.example .env
+# INFLUXDB_ADMIN_TOKEN must match stacks/iot/.env
 docker compose up -d
 
 # Step 3: Edge stack (optional)
-cd docker/edge && cp .env.example .env
+cd stacks/edge && cp .env.example .env
 docker compose up -d
 ```
 

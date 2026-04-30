@@ -31,7 +31,7 @@ submodules, grouped by concern.
 raisga/
 ├── .github                 ← org profile, shared issue templates, org-wide Actions workflows
 └── p4n4                    ← umbrella (monorepo with submodules)
-    ├── docker/
+    ├── stacks/
     │   ├── iot             ← p4n4-iot: Mosquitto · Node-RED · InfluxDB · Grafana
     │   ├── ai              ← p4n4-ai: Ollama · Letta · n8n
     │   └── edge            ← p4n4-edge: Edge Impulse inference stack
@@ -60,9 +60,9 @@ raisga/
 |------|---------------|------|-------------|-----------------|-------------|
 | `.github` | — | org meta | — | — | Org profile README, shared Actions, issue templates |
 | `p4n4` | — | meta / monorepo | — | — | Umbrella: architecture, ADRs, all sub-repos as submodules |
-| `p4n4-iot` | `docker/iot` | stack | ✓ | — | Docker Compose IoT stack; owns `p4n4-net` bridge |
-| `p4n4-ai` | `docker/ai` | stack | ✓ | — | Docker Compose GenAI stack; attaches to `p4n4-net` |
-| `p4n4-edge` | `docker/edge` | stack | ✓ | — | Docker Compose Edge Impulse stack; attaches to `p4n4-net` |
+| `p4n4-iot` | `stacks/iot` | stack | ✓ | — | Docker Compose IoT stack; owns `p4n4-net` bridge |
+| `p4n4-ai` | `stacks/ai` | stack | ✓ | — | Docker Compose GenAI stack; attaches to `p4n4-net` |
+| `p4n4-edge` | `stacks/edge` | stack | ✓ | — | Docker Compose Edge Impulse stack; attaches to `p4n4-net` |
 | `p4n4-lib` | `shared/lib` | library | ✓ | — | Shared library mediating between stacks and clients |
 | `p4n4-hw` | `shared/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
 | `p4n4-templates` | `shared/templates` | registry | — | Git-native | Community template index + example templates |
