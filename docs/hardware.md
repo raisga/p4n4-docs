@@ -1,6 +1,6 @@
 # Hardware
 
-`p4n4-hw` (`shared/hw/`) contains KiCad PCB designs and Raspberry Pi 5 GPIO scripts for the p4n4 platform reference hardware.
+`p4n4-hw` (`core/hw/`) contains KiCad PCB designs and Raspberry Pi 5 GPIO scripts for the p4n4 platform reference hardware.
 
 ## Repository Structure
 

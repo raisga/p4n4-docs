@@ -35,9 +35,10 @@ raisga/
     │   ├── iot             ← p4n4-iot: Mosquitto · Node-RED · InfluxDB · Grafana
     │   ├── ai              ← p4n4-ai: Ollama · Letta · n8n
     │   └── edge            ← p4n4-edge: Edge Impulse inference stack
-    ├── shared/
+    ├── core/
     │   ├── lib             ← p4n4-lib: shared library (stacks ↔ clients)
-    │   ├── hw              ← p4n4-hw: hardware designs + RPi5 GPIO scripts
+    │   └── hw              ← p4n4-hw: hardware designs + RPi5 GPIO scripts
+    ├── shared/
     │   └── templates       ← p4n4-templates: community template registry & index
     ├── client/
     │   ├── cli             ← p4n4-cli: Python CLI (published to PyPI as `p4n4`)
@@ -63,8 +64,8 @@ raisga/
 | `p4n4-iot` | `stacks/iot` | stack | ✓ | — | Docker Compose IoT stack; owns `p4n4-net` bridge |
 | `p4n4-ai` | `stacks/ai` | stack | ✓ | — | Docker Compose GenAI stack; attaches to `p4n4-net` |
 | `p4n4-edge` | `stacks/edge` | stack | ✓ | — | Docker Compose Edge Impulse stack; attaches to `p4n4-net` |
-| `p4n4-lib` | `shared/lib` | library | ✓ | — | Shared library mediating between stacks and clients |
-| `p4n4-hw` | `shared/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
+| `p4n4-lib` | `core/lib` | library | ✓ | — | Shared library mediating between stacks and clients |
+| `p4n4-hw` | `core/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
 | `p4n4-templates` | `shared/templates` | registry | — | Git-native | Community template index + example templates |
 | `p4n4-cli` | `client/cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
 | `p4n4-api` | `client/api` | service | ✓ | — | REST API gateway (port 8000) |
