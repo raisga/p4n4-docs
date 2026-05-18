@@ -1,6 +1,6 @@
 # Emulator
 
-`p4n4-emu` (`demo/emu/`) is a workstation hardware emulator. It applies Docker resource constraints (CPU, RAM, disk I/O) and optional QEMU ARM64 emulation as a Compose overlay on top of the existing p4n4 stacks — making a developer's workstation behave like target edge hardware without modifying any production files.
+`p4n4-emu` (`tools/emu/`) is a workstation hardware emulator. It applies Docker resource constraints (CPU, RAM, disk I/O) and optional QEMU ARM64 emulation as a Compose overlay on top of the existing p4n4 stacks — making a developer's workstation behave like target edge hardware without modifying any production files.
 
 ## How it works
 
@@ -32,7 +32,7 @@ The overlay injects `deploy.resources.limits` (CPU, memory) and optional `blkio_
 ## Installation
 
 ```bash
-cd demo/emu
+cd tools/emu
 uv sync          # or: pip install -e .
 ```
 

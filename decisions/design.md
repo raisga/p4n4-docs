@@ -344,13 +344,13 @@ Static site built with [MkDocs Material](https://squidfunk.github.io/mkdocs-mate
 Content structure:
 - `docs/index.md` — platform overview
 - `docs/getting-started.md` — installation and first project
-- `docs/iot-stack.md` — IoT stack reference
-- `docs/ai-stack.md` — AI stack reference
-- `docs/edge-stack.md` — Edge stack reference
-- `docs/cli-reference.md` — full CLI command reference
-- `docs/template-registry.md` — using and contributing templates
-- `docs/security.md` — security hardening guide
-- `docs/adr/` — Architecture Decision Records
+- `docs/stacks/iot-stack.md` — IoT stack reference
+- `docs/stacks/ai-stack.md` — AI stack reference
+- `docs/stacks/edge-stack.md` — Edge stack reference
+- `docs/reference/cli-reference.md` — full CLI command reference
+- `docs/reference/template-registry.md` — using and contributing templates
+- `docs/guides/security.md` — security hardening guide
+- `docs/decisions/adr/` — Architecture Decision Records
 
 ---
 

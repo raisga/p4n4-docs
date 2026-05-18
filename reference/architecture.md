@@ -22,10 +22,10 @@
 
 ## 1. Overview
 
-p4n4 is organised across **12 repositories** under the `raisga` GitHub organisation. Each repository
-has a single, well-defined responsibility and can be developed, versioned, and released
-independently. The `p4n4` umbrella repo is a **monorepo** that aggregates all sub-repos as Git
-submodules, grouped by concern.
+p4n4 is organised across **14 repositories** under the `raisga` GitHub organisation (plus one under
+`jraleman`). Each repository has a single, well-defined responsibility and can be developed,
+versioned, and released independently. The `p4n4` umbrella repo is a **monorepo** that aggregates
+all sub-repos as Git submodules, grouped by concern.
 
 ```
 raisga/
@@ -38,15 +38,17 @@ raisga/
     ├── core/
     │   ├── lib             ← p4n4-lib: shared library (stacks ↔ clients)
     │   └── hw              ← p4n4-hw: hardware designs + RPi5 GPIO scripts
-    ├── shared/
-    │   └── templates       ← p4n4-templates: community template registry & index
-    ├── client/
+    ├── clients/
     │   ├── cli             ← p4n4-cli: Python CLI (published to PyPI as `p4n4`)
     │   ├── api             ← p4n4-api: REST API gateway
     │   └── dashboard       ← p4n4-dashboard: web dashboard client
-    ├── demo/
+    ├── tools/
+    │   ├── templates       ← p4n4-templates: community template registry & index
     │   └── emu             ← p4n4-emu: workstation hardware emulator
-    └── docs                ← p4n4-docs: full technical documentation site (this repo)
+    └── web/
+        ├── docs            ← p4n4-docs: full technical documentation site (this repo)
+        ├── p4n4.com        ← p4n4.com: public-facing website (jraleman/p4n4.com)
+        └── blog            ← p4n4-blog: project blog
 ```
 
 > **Naming note:** The `p4n4` umbrella repo and the `p4n4` PyPI package (from `p4n4-cli`) share
@@ -66,12 +68,14 @@ raisga/
 | `p4n4-edge` | `stacks/edge` | stack | ✓ | — | Docker Compose Edge Impulse stack; attaches to `p4n4-net` |
 | `p4n4-lib` | `core/lib` | library | ✓ | — | Shared library mediating between stacks and clients |
 | `p4n4-hw` | `core/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
-| `p4n4-templates` | `shared/templates` | registry | — | Git-native | Community template index + example templates |
-| `p4n4-cli` | `client/cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
-| `p4n4-api` | `client/api` | service | ✓ | — | REST API gateway (port 8000) |
-| `p4n4-dashboard` | `client/dashboard` | frontend | ✓ | — | Web dashboard client |
-| `p4n4-emu` | `demo/emu` | tool | ✓ | — | Workstation hardware emulator (Docker resource constraints + QEMU) |
-| `p4n4-docs` | `docs` | docs | — | — | Full technical reference; deployable as a static site |
+| `p4n4-templates` | `tools/templates` | registry | — | Git-native | Community template index + example templates |
+| `p4n4-cli` | `clients/cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
+| `p4n4-api` | `clients/api` | service | ✓ | — | REST API gateway (port 8000) |
+| `p4n4-dashboard` | `clients/dashboard` | frontend | ✓ | — | Web dashboard client |
+| `p4n4-emu` | `tools/emu` | tool | ✓ | — | Workstation hardware emulator (Docker resource constraints + QEMU) |
+| `p4n4-docs` | `web/docs` | docs | — | — | Full technical reference; deployable as a static site |
+| `p4n4.com` | `web/p4n4.com` | website | — | — | Public-facing website (jraleman/p4n4.com) |
+| `p4n4-blog` | `web/blog` | website | — | — | Project blog |
 
 ---
 
@@ -99,24 +103,28 @@ raisga/
 ```
 p4n4/
 ├── README.md                   ← project overview, quick links to all sub-repos
-├── ARCHITECTURE.md             ← this file
 ├── CONTRIBUTING.md
 ├── CODE_OF_CONDUCT.md
 ├── SECURITY.md
 ├── LICENSE
-└── docs/
-    ├── adr/                    ← Architecture Decision Records
-    │   └── ADR-001.md
-    ├── diagrams/               ← network topology, data flow (SVG / Mermaid source)
-    │   └── .gitkeep
-    ├── index.md
-    ├── getting-started.md
-    ├── iot-stack.md
-    ├── ai-stack.md
-    ├── edge-stack.md
-    ├── cli-reference.md
-    ├── template-registry.md
-    └── security.md
+├── stacks/
+│   ├── iot/                    ← submodule: p4n4-iot
+│   ├── ai/                     ← submodule: p4n4-ai
+│   └── edge/                   ← submodule: p4n4-edge
+├── core/
+│   ├── lib/                    ← submodule: p4n4-lib
+│   └── hw/                     ← submodule: p4n4-hw
+├── clients/
+│   ├── cli/                    ← submodule: p4n4-cli
+│   ├── api/                    ← submodule: p4n4-api
+│   └── dashboard/              ← submodule: p4n4-dashboard
+├── tools/
+│   ├── templates/              ← submodule: p4n4-templates
+│   └── emu/                    ← submodule: p4n4-emu
+└── web/
+    ├── docs/                   ← submodule: p4n4-docs (ARCHITECTURE.md lives here)
+    ├── p4n4.com/               ← submodule: jraleman/p4n4.com
+    └── blog/                   ← submodule: p4n4-blog
 ```
 
 ---
@@ -725,7 +733,7 @@ Step 2 — Scaffold .github (org profile)
 
 Step 3 — Scaffold p4n4 (umbrella)
   → README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT
-  → docs/adr/ directory with ADR-001 (this architecture decision)
+  → docs/decisions/adr/ directory with ADR-001 (this architecture decision)
 
 Step 4 — Scaffold p4n4-docs (this repo)
   → Move/copy README.md (full technical reference)
@@ -833,4 +841,4 @@ via the existing `p4n4-ai` + `p4n4-iot` repos, plus a `multi-site` example in `p
 
 ---
 
-*Document maintained in `raisga/p4n4-docs`. Open issues or PRs there for changes.*
+*Document maintained in `raisga/p4n4-docs` (monorepo path: `web/docs`). Open issues or PRs there for changes.*

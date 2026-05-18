@@ -31,17 +31,17 @@ This document is the canonical specifications roadmap for the p4n4 platform. It 
 
 - Acceptance criteria under `PLANNED` phases are binding requirements for that release.
 - Items under `FUTURE` phases are architectural intent; details will be refined as prior phases complete.
-- This document does not replace architectural rationale (see [`design.md`](design.md)) or multi-repo structure decisions (see [`../ARCHITECTURE.md`](../ARCHITECTURE.md)).
+- This document does not replace architectural rationale (see [`design.md`](design.md)) or multi-repo structure decisions (see [`../reference/architecture.md`](../reference/architecture.md)).
 
 **Relationship to other documents:**
 
 | Document | What it covers |
 |---|---|
 | [`design.md`](design.md) | Goals, architecture, system design, design decisions |
-| [`../ARCHITECTURE.md`](../ARCHITECTURE.md) | Multi-repo layout, cross-repo dependencies, CI YAML, versioning policy |
-| [`cli-reference.md`](cli-reference.md) | Full CLI command reference with examples |
+| [`../reference/architecture.md`](../reference/architecture.md) | Multi-repo layout, cross-repo dependencies, CI YAML, versioning policy |
+| [`cli-reference.md`](../reference/cli-reference.md) | Full CLI command reference with examples |
 | [`adr/ADR-001.md`](adr/ADR-001.md) | Multi-repository architecture decision record |
-| [`../README.md`](../README.md) | Platform landing page and narrative roadmap |
+| [`../index.md`](../index.md) | Platform landing page and narrative roadmap |
 | **This document** | Feature specifications, acceptance criteria, interface contracts, test requirements |
 
 ---

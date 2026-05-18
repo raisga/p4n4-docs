@@ -62,6 +62,6 @@ p4n4 down
 
 ## Next steps
 
-- [IoT stack reference](iot-stack.md)
-- [AI stack reference](ai-stack.md)
-- [CLI reference](cli-reference.md)
+- [IoT stack reference](stacks/iot-stack.md)
+- [AI stack reference](stacks/ai-stack.md)
+- [CLI reference](reference/cli-reference.md)
