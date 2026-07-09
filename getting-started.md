@@ -16,32 +16,68 @@ p4n4 --version
 ## Create a project
 
 ```bash
-p4n4 init my-project
+p4n4 init my-project                 # IoT stack only (default)
+p4n4 init my-project --layer iot,ai  # multiple stacks
+p4n4 init my-project --layer all     # everything
 ```
 
-The interactive wizard asks:
+The interactive wizard prompts for configuration (InfluxDB organisation, timezone,
+service passwords — leave blank to auto-generate). It then:
 
-1. **Project name** — used as a prefix for container names.
-2. **Stacks to enable** — choose one or more of: `iot`, `ai`, `edge`.
-
-It then:
-
-- Renders Docker Compose files from bundled Jinja2 templates.
+- Fetches stack files from the canonical stack repos (`p4n4-iot`, `p4n4-ai`).
 - Generates cryptographically secure secrets and writes them to `.env`.
 - Creates a `.p4n4.json` project manifest.
+
+### Project layout
+
+A **single-layer** project keeps the stack files at the project root:
+
+```
+my-project/
+├── .p4n4.json
+├── .env
+├── docker-compose.yml
+├── config/
+└── scripts/
+```
+
+A **multi-layer** project gives each stack its own subdirectory, so the stacks run
+as separate Compose projects (the AI stack attaches to the `p4n4-net` network that
+the IoT stack creates):
+
+```
+my-project/
+├── .p4n4.json                  ← manifest at the root, lists all layers
+├── iot/
+│   ├── docker-compose.yml
+│   ├── .env
+│   ├── config/
+│   └── scripts/
+└── ai/
+    ├── docker-compose.yml
+    ├── .env
+    ├── config/
+    └── scripts/
+```
+
+Shared values such as `INFLUXDB_TOKEN` are written identically to every layer's
+`.env`, and `p4n4 secret rotate` keeps them in sync.
 
 ## Start the stacks
 
 ```bash
 cd my-project
-p4n4 up
+p4n4 up          # all enabled stacks
+p4n4 up iot      # one stack only
 ```
 
-This starts stacks in the correct order:
+With no argument, stacks start in dependency order:
 
 1. `iot` — creates the `p4n4-net` Docker bridge network, starts Mosquitto and InfluxDB first.
 2. `ai` — attaches to `p4n4-net`.
 3. `edge` — attaches to `p4n4-net`.
+
+`p4n4 down` stops them in reverse order.
 
 ## Service URLs (default ports)
 

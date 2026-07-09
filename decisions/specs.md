@@ -41,6 +41,7 @@ This document is the canonical specifications roadmap for the p4n4 platform. It 
 | [`../reference/architecture.md`](../reference/architecture.md) | Multi-repo layout, cross-repo dependencies, CI YAML, versioning policy |
 | [`cli-reference.md`](../reference/cli-reference.md) | Full CLI command reference with examples |
 | [`adr/ADR-001.md`](adr/ADR-001.md) | Multi-repository architecture decision record |
+| [`adr/ADR-002.md`](adr/ADR-002.md) | Per-layer subdirectories in multi-layer projects |
 | [`../index.md`](../index.md) | Platform landing page and narrative roadmap |
 | **This document** | Feature specifications, acceptance criteria, interface contracts, test requirements |
 

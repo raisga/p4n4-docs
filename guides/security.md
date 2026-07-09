@@ -51,6 +51,10 @@ p4n4 down && p4n4 up
 - Never commit `.env` to version control — it is in `.gitignore`.
 - Only `.env.example` (with placeholder values) is committed.
 - Use `p4n4 secret show` to audit current secrets (values are masked).
+- Multi-layer projects have one `.env` per stack (`iot/.env`, `ai/.env`).
+  `p4n4 secret rotate` updates all of them and writes the same new value to keys
+  shared across stacks (e.g. `INFLUXDB_TOKEN`), so never rotate one file by hand —
+  the stacks would drift out of sync.
 
 ## Reporting vulnerabilities
 

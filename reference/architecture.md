@@ -186,7 +186,7 @@ networks:
 
 ### 3.4 `p4n4-ai` (GenAI stack)
 
-Attaches to `p4n4-net` as an external network (must be created by `p4n4-iot` first, or via `p4n4 up --all`).
+Attaches to `p4n4-net` as an external network (must be created by `p4n4-iot` first, or via `p4n4 up`, which starts `p4n4-iot` first).
 
 ```
 p4n4-ai/
@@ -251,93 +251,73 @@ networks:
 
 ### 3.6 `p4n4-cli` (Python CLI / PyPI package)
 
-The `pip install p4n4` package. Bundles all Jinja2 templates internally so scaffold works fully offline.
+The `pip install p4n4` package. A thin Typer/Rich presentation layer: all shared,
+framework-free logic lives in `p4n4-lib` (see the module table below). Scaffolding
+fetches stack files from the canonical stack repos at init time (`git clone --depth 1`),
+or from a local checkout via `--source-iot` / `--source-ai` for offline use.
 
 ```
 p4n4-cli/
 ├── pyproject.toml              ← build system, deps, version, PyPI metadata
 ├── README.md
 ├── CHANGELOG.md
-├── PUBLISHING.md               ← release checklist and PyPI publishing guide
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml              ← lint + test on every PR
-│       └── publish.yml         ← publish to PyPI on version tag
+│       └── publish.yml         ← publish to PyPI on release
 │
 ├── p4n4/
-│   ├── __init__.py             ← version = "0.1.0"
+│   ├── __init__.py             ← package version
 │   ├── cli.py                  ← Typer app entrypoint; command registration
+│   ├── project.py              ← locate the current project's manifest / compose dirs
 │   │
-│   ├── commands/
-│   │   ├── __init__.py
-│   │   ├── init.py             ← `p4n4 init` interactive wizard
-│   │   ├── add.py              ← `p4n4 add`
-│   │   ├── remove.py           ← `p4n4 remove`
-│   │   ├── lifecycle.py        ← `p4n4 up / down / status / logs`
-│   │   ├── ei.py               ← `p4n4 ei` subcommands
-│   │   ├── secret.py           ← `p4n4 secret`
-│   │   ├── validate.py         ← `p4n4 validate`
-│   │   ├── upgrade.py          ← `p4n4 upgrade`
-│   │   └── template.py         ← `p4n4 template` subcommands
-│   │
-│   ├── scaffold/
-│   │   ├── __init__.py
-│   │   ├── manifest.py         ← .p4n4.json read / write / validate
-│   │   └── renderer.py         ← Jinja2 context builder + file renderer
-│   │
-│   ├── templates/              ← bundled Jinja2 templates (source of truth for scaffold)
-│   │   ├── iot/
-│   │   │   ├── docker-compose.yml.j2
-│   │   │   ├── env.example.j2
-│   │   │   ├── mosquitto/config/mosquitto.conf.j2
-│   │   │   ├── mosquitto/config/acl.j2
-│   │   │   ├── node-red/flows.json.j2
-│   │   │   ├── node-red/settings.js.j2
-│   │   │   ├── influxdb/config/influxdb.conf.j2
-│   │   │   ├── grafana/provisioning/datasources/influxdb.yaml.j2
-│   │   │   └── grafana/provisioning/dashboards/p4n4-base.json
-│   │   ├── ai/
-│   │   │   ├── docker-compose.yml.j2
-│   │   │   ├── env.example.j2
-│   │   │   ├── ollama/pull-models.sh.j2
-│   │   │   ├── letta/config/letta.conf.j2
-│   │   │   └── n8n/workflows/
-│   │   │       └── alert-enrichment.json   ← starter workflow (static JSON copy)
-│   │   ├── edge/
-│   │   │   ├── docker-compose.yml.j2
-│   │   │   └── env.example.j2
-│   │   └── shared/
-│   │       ├── .gitignore.j2
-│   │       └── .p4n4.json.j2   ← project manifest template
-│   │
-│   └── utils/
+│   └── commands/
 │       ├── __init__.py
-│       ├── docker.py           ← subprocess wrappers for docker/compose calls
-│       ├── secrets.py          ← cryptographically secure secret generation
-│       └── network.py          ← p4n4-net existence checks and creation
+│       ├── init.py             ← `p4n4 init` interactive wizard
+│       ├── add.py              ← `p4n4 add`
+│       ├── remove.py           ← `p4n4 remove`
+│       ├── lifecycle.py        ← `p4n4 up / down / status / logs`
+│       ├── ei.py               ← `p4n4 ei` subcommands
+│       ├── secret.py           ← `p4n4 secret`
+│       ├── validate.py         ← `p4n4 validate`
+│       ├── upgrade.py          ← `p4n4 upgrade`
+│       └── template.py         ← `p4n4 template` subcommands
 │
 └── tests/
     ├── conftest.py
-    ├── test_init.py
-    ├── test_scaffold.py
-    ├── test_manifest.py
-    ├── test_secret.py
-    └── test_validate.py
+    └── test_cli.py
 ```
+
+**Shared library (`p4n4-lib`, imported as `p4n4_lib`):**
+
+| Module | Purpose |
+|--------|---------|
+| `p4n4_lib.manifest` | `.p4n4.json` read / write / find (walk-up) |
+| `p4n4_lib.env` | Dotenv read/write, template-preserving writes |
+| `p4n4_lib.layers` | Layer registry: repo URLs, copy paths, required files/env keys |
+| `p4n4_lib.layout` | Project layout: flat (single-layer) vs per-layer subdirectories |
+| `p4n4_lib.scaffold` | Fetch stack sources and copy them into a project |
+| `p4n4_lib.validate` | Pure project validation returning (passed, errors) |
+| `p4n4_lib.secrets` | Token generation and rotatable-key policy |
+| `p4n4_lib.compose` | Docker Compose subprocess wrappers |
+
+**Generated project layout:** single-layer projects keep stack files at the project
+root. Multi-layer projects give each layer its own subdirectory (`<project>/iot/`,
+`<project>/ai/`) with its own `docker-compose.yml`, `config/`, `scripts/`, and `.env`,
+so the stacks run as separate Compose projects sharing the `p4n4-net` network
+(see [§5.2](#52-secrets--env-files)).
 
 **`pyproject.toml` key fields:**
 ```toml
 [project]
 name = "p4n4"
-version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
+  "p4n4-lib>=0.1.0",
   "typer[all]>=0.12",
   "rich>=13",
   "questionary>=2",
   "jinja2>=3",
-  "tomli>=2; python_version < '3.11'",
-  "pyyaml>=6",
 ]
 
 [project.scripts]
@@ -422,7 +402,8 @@ p4n4-docs/
 ├── mkdocs.yml                  ← site config (deploy pending)
 ├── docs/                       ← MkDocs source pages
 │   ├── adr/
-│   │   └── ADR-001.md
+│   │   ├── ADR-001.md
+│   │   └── ADR-002.md
 │   ├── diagrams/
 │   │   └── .gitkeep
 │   ├── index.md
@@ -537,7 +518,8 @@ p4n4-emu/
 3. p4n4-edge   → attaches to p4n4-net; fully independent of ai stack
 ```
 
-The `p4n4 up --all` command in the CLI enforces this order via Docker healthcheck polling.
+Running `p4n4 up` with no stack argument enforces this order: it starts each stack's
+Compose project in sequence (`iot → ai → edge`); `p4n4 down` stops them in reverse.
 
 ---
 
@@ -547,23 +529,42 @@ The `p4n4 up --all` command in the CLI enforces this order via Docker healthchec
 
 - The pre-existing `p4n4-iot` creates a network named **`p4n4-net`**.
 - `p4n4-ai` and `p4n4-edge` declare **`p4n4-net`** as `external: true`.
-- When running all stacks together, the CLI (`p4n4 up`) creates and reconciles the shared network automatically. Manual deployments must ensure the network name is consistent across stacks.
+- When running all stacks together, the CLI (`p4n4 up`) starts the stacks in dependency
+  order (`iot` first), so the IoT compose project creates `p4n4-net` before the other
+  stacks attach to it. Manual deployments must ensure the network name is consistent
+  across stacks.
+- Because the stacks define `p4n4-net` differently (owner vs `external: true`), their
+  compose files must **not** be merged into one Compose project — this is why multi-layer
+  projects scaffold each stack into its own directory (see 5.2).
 - When stacks are used standalone (without the IoT stack), they create their own default network.
 
 ### 5.2 Secrets & `.env` Files
 
 **Managed by CLI (recommended):**
-`p4n4 init` generates a **single project-level `.env`** that is shared by all stacks via the
-`--env-file` flag in every `docker compose` call. The CLI owns the full secret lifecycle.
+`p4n4 init` scaffolds each enabled stack with its own `.env`, generated with
+cryptographically secure secrets. Single-layer projects keep everything at the project
+root; multi-layer projects give each stack its own subdirectory and `.env`, and every
+`docker compose` call runs inside that stack's directory.
 
 ```
-my-project/
-├── .env                        ← one file, all secrets, never committed
-├── .env.example                ← committed; union of all stack .env.example files
-├── docker-compose.iot.yml      ← generated
-├── docker-compose.ai.yml       ← generated
-└── docker-compose.edge.yml     ← generated
+my-project/                     ← multi-layer layout (`--layer iot,ai`)
+├── .p4n4.json                  ← manifest: project name, enabled layers
+├── iot/
+│   ├── docker-compose.yml      ← copied from p4n4-iot
+│   ├── .env                    ← iot secrets, never committed
+│   ├── config/ …
+│   └── scripts/ …
+└── ai/
+    ├── docker-compose.yml      ← copied from p4n4-ai
+    ├── .env                    ← ai secrets + shared InfluxDB values
+    ├── config/ …
+    └── scripts/ …
 ```
+
+Cross-stack values (`INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET`) are written
+identically to every stack's `.env` at init time, and `p4n4 secret rotate` generates one
+new value per key and writes it to every `.env` containing that key, so credentials
+never drift between stacks.
 
 **Standalone (without CLI):**
 Each stack repo ships its own `.env.example`. Copy to `.env` and fill in values manually.

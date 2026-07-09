@@ -464,16 +464,26 @@ All services on `p4n4-net` can resolve each other by container name (e.g., `http
 
 ### CLI-managed (recommended)
 
-`p4n4 init` generates a **single project-level `.env`** with cryptographically secure secrets for all stacks. All `docker compose` invocations use `--env-file .env`.
+`p4n4 init` generates a **`.env` per stack** with cryptographically secure secrets.
+Single-layer projects keep the `.env` at the project root; multi-layer projects place
+one in each stack's subdirectory (see [ADR-002](adr/ADR-002.md)). Every
+`docker compose` invocation runs inside the owning stack's directory, which picks up
+that directory's `.env`.
 
 ```
-my-project/
-├── .env              ← all secrets; in .gitignore
-├── .env.example      ← placeholder values; committed
-└── ...
+my-project/               ← multi-layer (`--layer iot,ai`)
+├── .p4n4.json
+├── iot/
+│   ├── .env              ← iot secrets; in .gitignore
+│   └── ...
+└── ai/
+    ├── .env              ← ai secrets + shared InfluxDB values
+    └── ...
 ```
 
-Secrets are generated with Python's `secrets.token_hex(32)` for tokens and `secrets.token_urlsafe(24)` for passwords.
+Secrets are generated with Python's `secrets.token_hex()`. Cross-stack values are
+written identically to every stack's `.env`, and `p4n4 secret rotate` keeps them in
+sync by generating one value per key and updating every file that contains it.
 
 ### Cross-stack shared secrets
 

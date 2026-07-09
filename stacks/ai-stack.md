@@ -19,7 +19,7 @@ The IoT stack must be running (to provide `p4n4-net`) or the network must exist:
 docker network create p4n4-net  # if not using p4n4-iot
 ```
 
-Or start everything with: `p4n4 up --all`
+Or start everything with: `p4n4 up` (starts all enabled stacks in dependency order, so `p4n4-iot` creates the network first)
 
 ## Pull models
 

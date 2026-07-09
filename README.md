@@ -49,6 +49,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Design Document](decisions/design.md) | Architecture, data flow, design decisions |
 | [Specifications Roadmap](decisions/specs.md) | Feature specs, acceptance criteria, release milestones |
 | [ADR-001](decisions/adr/ADR-001.md) | Multi-repository architecture decision record |
+| [ADR-002](decisions/adr/ADR-002.md) | Per-layer subdirectories in multi-layer projects |
 
 ---
 
@@ -278,4 +279,4 @@ EI_API_KEY=
 EI_PROJECT_ID=
 ```
 
-> Cross-stack note: `INFLUXDB_ADMIN_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET` must be identical across all stack `.env` files when deploying manually. The CLI handles this automatically via a shared project-level `.env`.
+> Cross-stack note: `INFLUXDB_ADMIN_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET` must be identical across all stack `.env` files when deploying manually. The CLI handles this automatically: `p4n4 init` writes the shared values identically to every layer's `.env`, and `p4n4 secret rotate` keeps them in sync ([ADR-002](decisions/adr/ADR-002.md)).
