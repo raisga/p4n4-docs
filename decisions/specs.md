@@ -42,7 +42,7 @@ This document is the canonical specifications roadmap for the p4n4 platform. It 
 | [`cli-reference.md`](../reference/cli-reference.md) | Full CLI command reference with examples |
 | [`adr/ADR-001.md`](adr/ADR-001.md) | Multi-repository architecture decision record |
 | [`adr/ADR-002.md`](adr/ADR-002.md) | Per-layer subdirectories in multi-layer projects |
-| [`../index.md`](../index.md) | Platform landing page and narrative roadmap |
+| [`../README.md`](../README.md) | Platform landing page and narrative roadmap |
 | **This document** | Feature specifications, acceptance criteria, interface contracts, test requirements |
 
 ---
@@ -180,6 +180,8 @@ v0.3 Scale & Extensibility
 
 - [ ] `p4n4 init PATH` scaffolds all selected stack `docker-compose.yml` and `.env.example` files using bundled Jinja2 templates without any network access.
 - [ ] `p4n4 init` prompts for project name, selects stacks interactively, and writes a valid `.p4n4.json` manifest.
+- [ ] `p4n4 init --layer all` scaffolds the iot, ai and edge stacks; the manifest lists only layers that were scaffolded, and unknown layer names are rejected.
+- [ ] `p4n4 init` accepts `--source-iot`, `--source-ai` and `--source-edge` to scaffold from local checkouts instead of cloning.
 - [ ] `p4n4 up` without arguments starts stacks in the defined order, polling Docker healthchecks between stages.
 - [ ] `p4n4 down --volumes` removes named volumes as well as containers.
 - [ ] `p4n4 status` prints a Rich table with columns: container name, image, status, ports.
@@ -265,6 +267,10 @@ p4n4 secret generate      # Prints fresh secrets to stdout; does NOT write .env
 - [ ] `docker compose up` in `p4n4-iot/` starts all four services (Mosquitto, Node-RED, InfluxDB, Grafana) without errors.
 - [ ] Mosquitto binds to port 1883 (TCP) and 9001 (WebSocket) on the host.
 - [ ] Node-RED UI is reachable at `http://localhost:1880`.
+- [ ] The Node-RED editor and Admin API require a login, checked against `NODE_RED_USER` and `NODE_RED_PASSWORD`; with no password set, every login is refused.
+- [ ] Deploying from the Node-RED editor saves to the project's `config/node-red/flows/flows.json` (Compose mounts the `flows/` directory, not the file).
+- [ ] Node-RED writes to the InfluxDB org and buckets set in `.env` (`INFLUXDB_ORG`, `INFLUXDB_BUCKET`, `INFLUXDB_SANDBOX_BUCKET`), and failed writes reach a Catch node.
+- [ ] Node-RED stores telemetry and inference results as described in §8.6, and the provisioned *Sensor Data* panel plots one series per device and sensor.
 - [ ] InfluxDB UI is reachable at `http://localhost:8086`.
 - [ ] Grafana UI is reachable at `http://localhost:3000`.
 - [ ] Docker bridge network `p4n4-net` with subnet `172.20.0.0/16` is created when the stack starts.
@@ -293,13 +299,15 @@ p4n4 secret generate      # Prints fresh secrets to stdout; does NOT write .env
 ### F-0.1.3 — p4n4-edge Compose Stack
 
 **Repo:** `p4n4-edge`
-**Description:** Docker Compose stack running the Edge Impulse Linux Runner. Fully independent; attaches to `p4n4-net` but does not require any other p4n4 stack to function.
+**Description:** Docker Compose stack running the p4n4 inference runner, which loads an Edge Impulse `.eim` model or an ONNX model (or simulates results in mock mode). Fully independent; attaches to `p4n4-net` but does not require any other p4n4 stack to function.
 
 **Acceptance Criteria:**
 
 - [ ] `docker compose up` in `p4n4-edge/` starts the Edge Impulse runner without errors when `p4n4-net` exists.
-- [ ] Runner HTTP API is reachable at `http://localhost:8080`.
-- [ ] A bind-mount at `./models/` is available for `.eim` model files.
+- [ ] Runner HTTP API is reachable at `http://localhost:8080` and serves `GET /health`, `GET /api/v1/info` and `POST /api/v1/infer` (§8.5, F-0.2.4).
+- [ ] Read-only bind-mounts at `./edge-impulse/models/` and `./onnx/models/` are available for `.eim` and `.onnx` model files.
+- [ ] The runner subscribes to `sensors/+/raw` and publishes each result to `inference/<device-id>/result` (§8.6).
+- [ ] After changing the model file or backend in `.env`, `make up` recreates the runner so the change applies (`docker compose restart` keeps the old environment).
 - [ ] The stack attaches to `p4n4-net` as `external: true`.
 - [ ] `.env.example` includes `EI_API_KEY` placeholder.
 
@@ -314,7 +322,7 @@ The following are explicit non-goals for v0.1. Their absence is not a defect.
 - No Kubernetes or Helm chart support.
 - No shell tab-completion.
 - No embedding or semantic search pipeline.
-- `p4n4 ei infer` and `p4n4 ei list` are not yet implemented (only `ei deploy`, `ei run`, `ei status`).
+- The `p4n4 ei` subcommands are not yet implemented: `ei deploy`, `ei run` and `ei status` exist as stubs that exit non-zero, and `ei infer` and `ei list` don't exist. The runner's inference API (§8.5) is available.
 - Template registry is read-only; no `p4n4 template push` command.
 
 ---
@@ -458,36 +466,57 @@ p4n4 ai agent chat <name>       # Interactive chat with an agent
 
 | Command                   | Description                                                  |
 |---------------------------|--------------------------------------------------------------|
-| `p4n4 ei deploy MODEL`    | Copy `.eim` to models dir; restart runner container          |
+| `p4n4 ei deploy MODEL`    | Copy `.eim` or `.onnx` to its models dir; recreate runner container |
 | `p4n4 ei run`             | Start the Edge Impulse runner container                      |
 | `p4n4 ei status`          | Print runner container status                                |
 | `p4n4 ei list`            | List `.eim` model files in `edge-impulse/models/`            |
-| `p4n4 ei infer FILE`      | Send a sample file to runner `:8080/api/v1/infer`; print result |
+| `p4n4 ei infer FILE`      | Send a sample's feature vector to runner `:8080/api/v1/infer`; print result |
 | `p4n4 ei update`          | Pull latest Edge Impulse Linux Runner Docker image           |
 | `p4n4 ei info`            | Print runner version, loaded model filename, and health status |
 
-**Inference API contract (Edge Impulse runner at `:8080`):**
+**Inference API contract (inference runner at `:8080`):**
 
 ```
 POST /api/v1/infer
-Content-Type: multipart/form-data
+Content-Type: application/json
 
-Form fields:
-  file: <binary — raw sensor CSV or image frame>
+{
+  "values": [<number>, ...],       — feature vector; must match the model's input size
+  "device": "<string>"             — optional; defaults to "api"
+}
 
 Response 200 (application/json):
 {
-  "result": {
-    "classification": {
-      "<label>": <float — confidence 0.0 to 1.0>,
-      ...
-    }
-  },
-  "timing": {
-    "dsp": <int — ms>,
-    "classification": <int — ms>,
-    "anomaly": <int — ms>
-  }
+  "device": "<string>",
+  "timestamp": "<ISO 8601 UTC>",
+  "label": "<string — top label>",
+  "confidence": <float — 0.0 to 1.0>,
+  "anomaly_score": <float — 0.0 to 1.0; 0.0 for ONNX>,
+  "latency_ms": <float>,
+  "mode": "model" | "onnx" | "mock"
+}
+
+Errors (application/json, {"error": "<message>"}):
+  400 — body is not JSON, or "values" is not a non-empty array of numbers
+  411 — Content-Length missing
+  413 — body larger than 1 MiB
+```
+
+The result has the same fields as a message on `inference/<device-id>/result`, but `POST /api/v1/infer` doesn't publish it to MQTT, write it to InfluxDB or count it in `/health`. `p4n4 ei infer FILE` reads the feature vector from the file (for example one CSV row) and sends it as `values`.
+
+```
+GET /api/v1/info
+
+Response 200 (application/json):
+{
+  "backend": "model" | "onnx" | "mock",
+  "model_backend_setting": "auto" | "eim" | "onnx" | "mock",
+  "model_file": "<path>" | null,
+  "model": { ... },               — .eim: project, input_features_count, labels, has_anomaly;
+                                    .onnx: input_name, input_shape
+  "labels": ["<string>", ...],    — ONNX_LABELS in onnx mode, else []
+  "mqtt_topic_input": "<string>",
+  "mqtt_topic_results": "<string>"
 }
 ```
 
@@ -495,7 +524,7 @@ Response 200 (application/json):
 
 - [ ] `p4n4 ei list` prints a Rich table with columns: filename, file size, last modified; returns a zero-row table with an informational message when no `.eim` files are found.
 - [ ] `p4n4 ei infer sample.csv` sends the file to `:8080/api/v1/infer` and prints classification labels ranked by confidence score.
-- [ ] `p4n4 ei info` prints runner container image tag, currently mounted `.eim` filename, and HTTP health check status.
+- [ ] `p4n4 ei info` prints runner container image tag, backend and model file from `GET /api/v1/info`, and HTTP health check status.
 - [ ] `p4n4 ei update` wraps `docker pull edgeimpulse/linux-runner:latest` and prints the pulled image digest.
 - [ ] All `p4n4 ei` subcommands exit non-zero and print a descriptive error when the edge stack is not running.
 
@@ -1058,25 +1087,40 @@ Standard topic structure used across all official p4n4 templates and flows:
 | `inference/<device-id>/result`       | EI runner → NR  | Edge Impulse classification result |
 | `federation/<site-id>/sensors/#`     | spoke → hub     | Federated telemetry (v0.3)       |
 
+**Payloads and storage:**
+
+- Every payload is a JSON object. The device id and measurement come from the topic; a `device` key in a `sensors/` or `inference/` payload is ignored by Node-RED. A device id is one topic level, so it can't contain `/`, `+` or `#`.
+- Node-RED writes `sensors/<device-id>/<measurement>` readings to the `sensor_data` measurement in `INFLUXDB_BUCKET`, tagged `device` and `sensor` (the measurement from the topic). Numbers, strings and booleans in the payload become fields; the numeric reading goes in `value`, for example `{"value": 23.5, "unit": "C"}`.
+- Node-RED writes `inference/<device-id>/result` messages to the `inference` measurement, tagged `device` and, when the payload has one, `model`.
+- The inference runner (p4n4-edge) reads feature vectors from `sensors/<device-id>/raw` (`{"values": [...]}`) and publishes each result to `inference/<device-id>/result`. `MQTT_TOPIC_RESULTS` is a template in which `{device}` is replaced by the device id.
+- The same topics under a `sandbox/` prefix go to `INFLUXDB_SANDBOX_BUCKET`.
+- Node-RED drops `sensors/` and `inference/` messages whose topic doesn't match these patterns, with a warning in its debug sidebar.
+
 ### 8.7 Environment Variable Reference
 
 All stack environment variables, their owning stack, and whether they are cross-stack shared secrets:
 
 | Variable                    | Owner Stack | Used By                       | Cross-Stack Secret |
 |-----------------------------|-------------|-------------------------------|-------------------|
-| `INFLUXDB_ADMIN_TOKEN`      | p4n4-iot    | Node-RED, Grafana, n8n        | Yes               |
+| `INFLUXDB_TOKEN`            | p4n4-iot    | Node-RED, Grafana, n8n, EI runner | Yes           |
 | `INFLUXDB_ORG`              | p4n4-iot    | Node-RED, Grafana, n8n        | No                |
 | `INFLUXDB_BUCKET`           | p4n4-iot    | Node-RED, Grafana, n8n        | No                |
-| `INFLUXDB_ADMIN_USER`       | p4n4-iot    | InfluxDB                      | No                |
-| `INFLUXDB_ADMIN_PASSWORD`   | p4n4-iot    | InfluxDB                      | No                |
+| `INFLUXDB_SANDBOX_BUCKET`   | p4n4-iot    | Node-RED, Grafana             | No                |
+| `INFLUXDB_USERNAME`         | p4n4-iot    | InfluxDB                      | No                |
+| `INFLUXDB_PASSWORD`         | p4n4-iot    | InfluxDB                      | No                |
 | `MQTT_USER`                 | p4n4-iot    | Node-RED, Mosquitto ACL       | Yes               |
 | `MQTT_PASSWORD`             | p4n4-iot    | Node-RED, Mosquitto ACL       | Yes               |
-| `GF_SECURITY_ADMIN_PASSWORD`| p4n4-iot    | Grafana                       | No                |
+| `GRAFANA_USER`              | p4n4-iot    | Grafana                       | No                |
+| `GRAFANA_PASSWORD`          | p4n4-iot    | Grafana                       | No                |
+| `NODE_RED_USER`             | p4n4-iot    | Node-RED                      | No                |
+| `NODE_RED_PASSWORD`         | p4n4-iot    | Node-RED                      | No                |
 | `N8N_BASIC_AUTH_USER`       | p4n4-ai     | n8n                           | No                |
 | `N8N_BASIC_AUTH_PASSWORD`   | p4n4-ai     | n8n                           | No                |
 | `N8N_ENCRYPTION_KEY`        | p4n4-ai     | n8n                           | No                |
 | `LETTA_SERVER_PASSWORD`     | p4n4-ai     | Letta, Node-RED               | Yes               |
-| `EI_API_KEY`                | p4n4-edge   | Edge Impulse Runner           | No                |
+| `EI_API_KEY`                | p4n4-edge   | EI runner                     | No                |
+| `MQTT_TOPIC_INPUT`          | p4n4-edge   | EI runner                     | No                |
+| `MQTT_TOPIC_RESULTS`        | p4n4-edge   | EI runner                     | No                |
 
 ---
 
@@ -1222,3 +1266,4 @@ Post-release
 |------------|---------|---------------------------------------------------------------------|
 | 0.1-draft  | raisga  | Initial draft — all phases, v0.1 through v1.0                      |
 | 0.1-draft2 | raisga  | Reset to greenfield: v0.1 PLANNED, v0.2/v0.3 FUTURE; CLI-first priority; all acceptance criteria open |
+| 0.1-draft3 | raisga  | Match the known-issues fixes: Node-RED login and flows directory (F-0.1.1), edge runner endpoints, model mounts and topics (F-0.1.3), `init` edge scaffolding (F-0.1.4), `ei` stub status (§4.2), JSON inference contract (F-0.2.4), topic payload and storage rules (§8.6), env var names (§8.7) |

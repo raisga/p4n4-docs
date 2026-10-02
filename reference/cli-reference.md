@@ -22,15 +22,21 @@ p4n4 init my-project --no-interactive      # skip wizard, use defaults
 p4n4 init my-project --source-iot ../p4n4-iot   # scaffold from a local checkout (offline)
 ```
 
+The wizard prompts for the InfluxDB org, timezone and service passwords (blank means
+generate one), including the Node-RED editor password, which is written with
+`NODE_RED_USER=admin` to the IoT `.env`. The edge layer gets the compose file, runner,
+model directories and `.env`, sharing the InfluxDB token, org and timezone with the other
+layers. Unknown layer names are rejected.
+
 | Flag | Description |
 |------|-------------|
 | `--layer <names>` | Layers to enable: `iot`, `ai`, `edge`, `all`, or comma-separated |
 | `--no-interactive` | Skip the wizard and auto-generate all secrets |
-| `--source-iot PATH` / `--source-ai PATH` | Use a local stack checkout instead of cloning |
+| `--source-iot PATH` / `--source-ai PATH` / `--source-edge PATH` | Use a local stack checkout instead of cloning |
 
 **Layout:** single-layer projects place `docker-compose.yml`, `config/`, `scripts/`, and
 `.env` at the project root. Multi-layer projects give each layer its own subdirectory
-(`<project>/iot/`, `<project>/ai/`) so the stacks run as separate Compose projects;
+(`<project>/iot/`, `<project>/ai/`, `<project>/edge/`) so the stacks run as separate Compose projects;
 shared `.env` keys (e.g. `INFLUXDB_TOKEN`) are written identically to every layer.
 See [Getting Started](../getting-started.md#project-layout).
 
@@ -108,8 +114,9 @@ In multi-layer projects, pass `--stack <name>` to follow one stack's logs, or
 
 ## `p4n4 validate`
 
-Validate `.p4n4.json`, required stack files, and `.env` keys. Multi-layer projects
-are checked per layer directory (`iot/…`, `ai/…`).
+Validate `.p4n4.json`, required stack files, and `.env` keys (the IoT layer requires
+`NODE_RED_USER` and `NODE_RED_PASSWORD`). Multi-layer projects are checked per layer
+directory (`iot/…`, `ai/…`, `edge/…`).
 
 ---
 
@@ -129,8 +136,13 @@ p4n4 upgrade iot
 | Action | Description |
 |--------|-------------|
 | `show` | Show masked secrets from `.env` (per stack in multi-layer projects) |
-| `rotate` | Re-generate all password/token values |
+| `rotate` | Re-generate passwords and tokens (see below) |
 | `generate` | Print new secrets to stdout |
+
+`rotate` replaces whichever of these keys are present:
+
+- **IoT:** `INFLUXDB_PASSWORD`, `INFLUXDB_TOKEN`, `GRAFANA_PASSWORD`, `NODE_RED_PASSWORD`
+- **AI:** `LETTA_SERVER_PASSWORD`, `N8N_BASIC_AUTH_PASSWORD`, `N8N_ENCRYPTION_KEY`
 
 In multi-layer projects, `rotate` updates every layer's `.env` and writes the **same**
 new value to keys shared across stacks (e.g. `INFLUXDB_TOKEN` in both `iot/.env` and
@@ -140,11 +152,17 @@ new value to keys shared across stacks (e.g. `INFLUXDB_TOKEN` in both `iot/.env`
 
 ## `p4n4 ei`
 
-| Subcommand | Description |
-|------------|-------------|
-| `deploy MODEL` | Copy a `.eim` model and restart the runner |
-| `run` | Start the Edge Impulse runner |
+> Not implemented in v0.1: `deploy`, `run` and `status` print "not yet implemented" and
+> exit `1`. Manage the runner with the edge stack's `make deploy-model` / `make up` and its
+> [HTTP API](../stacks/edge-stack.md#http-api) instead.
+
+| Subcommand | Planned behavior |
+|------------|------------------|
+| `deploy MODEL` | Copy a `.eim` or `.onnx` model to its models directory and recreate the runner |
+| `run` | Start the inference runner |
 | `status` | Show runner container status |
+
+`list`, `infer`, `update` and `info` are specified for v0.2 ([F-0.2.4](../decisions/specs.md#f-024--p4n4-ei-subcommand-expansion)).
 
 ---
 

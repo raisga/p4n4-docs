@@ -3,7 +3,7 @@
 > EdgeAI + GenAI Integration Platform
 > Version 0.1 | 2026
 
-**p4n4** (pronounced *"pana"*) is a self-hosted, open-source Docker Compose platform for small-to-medium IoT deployments augmented with an AI layer (Edge and/or Generative). It takes direct inspiration from the IoTStack TIGUITTO pattern and extends it with a dedicated **GenAI stack** (n8n, Letta, Ollama) and **EdgeAI stack** (Edge Impulse).
+**p4n4** (pronounced *"pana"*) is a self-hosted, open-source Docker Compose platform for small-to-medium IoT deployments augmented with an AI layer (Edge and/or Generative). It takes direct inspiration from the IoTStack TIGUITTO pattern and extends it with a dedicated **GenAI stack** (n8n, Letta, Ollama) and **EdgeAI stack** (Edge Impulse and ONNX inference).
 
 ---
 
@@ -26,7 +26,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 |-------|---------|
 | [IoT](stacks/iot-stack.md) | Eclipse Mosquitto · Node-RED · InfluxDB · Grafana |
 | [AI](stacks/ai-stack.md) | Ollama · Letta · n8n |
-| [Edge](stacks/edge-stack.md) | Edge Impulse Linux Runner |
+| [Edge](stacks/edge-stack.md) | Inference runner (Edge Impulse `.eim` · ONNX · mock) |
 
 **Minimum requirements:** 4 GB RAM · 10 GB disk · Docker 24+ with Compose v2 · Python 3.11+
 
@@ -39,8 +39,10 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Getting Started](getting-started.md) | Installation, first project, service URLs |
 | [IoT Stack](stacks/iot-stack.md) | Mosquitto · Node-RED · InfluxDB · Grafana reference |
 | [AI Stack](stacks/ai-stack.md) | Ollama · Letta · n8n reference |
-| [Edge Stack](stacks/edge-stack.md) | Edge Impulse runner, model deployment |
+| [Edge Stack](stacks/edge-stack.md) | Inference runner, model backends, HTTP API |
 | [CLI Reference](reference/cli-reference.md) | All `p4n4` commands |
+| [REST API](reference/api.md) | p4n4-api: sign-in, project, stack and edge metrics endpoints |
+| [Dashboard](reference/dashboard.md) | p4n4-dashboard: Flutter app for desktop and mobile |
 | [Template Registry](reference/template-registry.md) | Using and contributing templates |
 | [Hardware](reference/hardware.md) | p4n4-hw: KiCad designs, RPi5 GPIO scripts |
 | [Emulator](reference/emulator.md) | p4n4-emu: workstation hardware emulation |
@@ -75,7 +77,7 @@ graph LR
     end
 
     subgraph edge["Edge AI Stack - p4n4-edge"]
-        EI["Edge Impulse<br/>Linux Runner"]
+        EI["Inference Runner<br/>EI · ONNX"]
     end
 
     net(["p4n4-net"])
@@ -101,7 +103,7 @@ graph TD
     letta["Letta"]
     wf["n8n"]
     grafana["Grafana"]
-    ei["Edge Impulse Runner"]
+    ei["Inference Runner"]
 
     devices   -->|MQTT publish| mosquitto
     mosquitto -->|MQTT subscribe| nodered
@@ -109,12 +111,13 @@ graph TD
     nodered   -->|real-time inference| ollama
     nodered   -->|agent event logging| letta
     nodered   -->|trigger workflows| wf
-    nodered   -->|run inference| ei
+    mosquitto -->|sensors/+/raw| ei
     wf        -->|historical queries| influxdb
     wf        -->|reasoning chains| ollama
     wf        -->|agent memory| letta
     wf        -->|run inference| ei
-    ei        -->|inference result| nodered
+    ei        -->|inference/+/result| mosquitto
+    ei        -->|ai_events| influxdb
     influxdb  -->|dashboard queries| grafana
     grafana   -->|alert webhooks| wf
 ```
@@ -170,15 +173,17 @@ See the [Security guide](guides/security.md) for the full hardening walkthrough.
 ### Phase 1 — Foundation (v0.1)
 - [x] IoT stack: Mosquitto · Node-RED · InfluxDB · Grafana
 - [x] GenAI stack: Ollama · Letta · n8n integrated via Node-RED
-- [x] Edge AI stack: Edge Impulse Linux Runner
+- [x] Edge AI stack: inference runner with Edge Impulse, ONNX and mock backends
 - [x] `p4n4 init`, `up`, `down`, `status`, `validate` CLI commands
+- [x] `p4n4-api` v0.1: JWT sign-in, project, stack status and edge metrics (read-only)
+- [x] `p4n4-dashboard`: Flutter app with Services, Edge, Agent, Grafana and Video tabs
 - [x] Published to PyPI as `p4n4`
 
 ### Phase 2 — Intelligence Layer (v0.2)
 - [ ] Pre-built Letta agent personas: Site Monitor, Anomaly Analyst, Operator Assistant
 - [ ] Node-RED AI palette: curated nodes for Ollama/Letta integration
 - [ ] n8n workflow library: alert enrichment, scheduled digest, incident escalation
-- [ ] `p4n4 ei` subcommands: list, infer, update, info
+- [ ] `p4n4 ei` subcommands: deploy, run, status (stubs in v0.1), list, infer, update, info
 - [ ] `p4n4 template pull/push/search` — community template registry
 - [ ] First official community templates published
 
@@ -207,7 +212,7 @@ p4n4/                       (monorepo — you are here)
 ├── clients/
 │   ├── cli/                ← Python CLI — pip install p4n4 (p4n4-cli)
 │   ├── api/                ← REST API gateway (p4n4-api)
-│   └── dashboard/          ← Web dashboard (p4n4-dashboard)
+│   └── dashboard/          ← Flutter dashboard app (p4n4-dashboard)
 ├── tools/
 │   ├── templates/          ← Community templates (p4n4-templates)
 │   └── emu/                ← Hardware emulator for workstation dev (p4n4-emu)
@@ -223,15 +228,15 @@ p4n4/                       (monorepo — you are here)
 
 | Service | Stack | Port(s) | Exposure |
 |---------|-------|---------|----------|
-| Mosquitto | iot | 1883, 8883, 9001 | IoT devices, Node-RED |
-| Node-RED | iot | 1880 | Operators, internal services |
+| Mosquitto | iot | 1883, 9001 (8883 with TLS) | IoT devices, Node-RED |
+| Node-RED | iot | 1880 | Operators (login required), internal services |
 | InfluxDB | iot | 8086 | Node-RED, Grafana, n8n |
 | Grafana | iot | 3000 | Operators (browser) |
 | Ollama | ai | 11434 | Node-RED, Letta, n8n (internal only) |
 | Letta | ai | 8283 | Node-RED, n8n (internal only) |
 | n8n | ai | 5678 | Operators, Grafana webhooks |
-| Edge Impulse Runner | edge | 8080 | Node-RED, n8n |
-| p4n4 REST API | api | 8000 | Client layer |
+| Inference runner | edge | 8080 | Health and test inference (no auth) |
+| p4n4 REST API | api | 8000 | Dashboard and other clients (binds `127.0.0.1` by default) |
 
 ### TIGUITTO vs p4n4
 
@@ -259,12 +264,19 @@ MQTT_USER=p4n4mqtt
 MQTT_PASSWORD=changeme            # generated by: p4n4 secret rotate
 
 # InfluxDB
-INFLUXDB_ADMIN_TOKEN=changeme
-INFLUXDB_ORG=p4n4
+INFLUXDB_USERNAME=admin
+INFLUXDB_PASSWORD=changeme
+INFLUXDB_TOKEN=changeme
+INFLUXDB_ORG=ming
 INFLUXDB_BUCKET=raw_telemetry
 
 # Grafana
-GF_SECURITY_ADMIN_PASSWORD=changeme
+GRAFANA_USER=admin
+GRAFANA_PASSWORD=changeme
+
+# Node-RED editor login (empty password refuses every login)
+NODE_RED_USER=admin
+NODE_RED_PASSWORD=changeme
 
 # n8n
 N8N_BASIC_AUTH_USER=admin
@@ -274,9 +286,11 @@ N8N_ENCRYPTION_KEY=changeme
 # Letta
 LETTA_SERVER_PASSWORD=changeme
 
-# Edge Impulse (optional)
-EI_API_KEY=
-EI_PROJECT_ID=
+# Edge runner
+MODEL_BACKEND=auto                # auto | eim | onnx | mock
+EI_MODEL_FILE=model.eim
+ONNX_MODEL_FILE=model.onnx
+EI_API_KEY=                       # optional, Edge Impulse cloud features only
 ```
 
-> Cross-stack note: `INFLUXDB_ADMIN_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET` must be identical across all stack `.env` files when deploying manually. The CLI handles this automatically: `p4n4 init` writes the shared values identically to every layer's `.env`, and `p4n4 secret rotate` keeps them in sync ([ADR-002](decisions/adr/ADR-002.md)).
+> Cross-stack note: `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET` must be identical across all stack `.env` files when deploying manually. The CLI handles this automatically: `p4n4 init` writes the shared values identically to every layer's `.env`, and `p4n4 secret rotate` keeps them in sync ([ADR-002](decisions/adr/ADR-002.md)).

@@ -4,13 +4,15 @@
 
 ## How it works
 
-`p4n4-emu` generates a `docker-compose.emu.yml` overlay per stack and passes it to:
+`p4n4-emu` generates a `*.emu.yml` overlay per stack and passes it after the stack's own compose files (`compose.yaml` / `docker-compose.yml`, any `docker-compose.override.yml`, or `COMPOSE_FILE`):
 
 ```
-docker compose -f docker-compose.yml -f *.emu.yml up -d
+docker compose -f docker-compose.yml [-f docker-compose.override.yml] -f <stack>.emu.yml up -d
 ```
 
-The overlay injects `deploy.resources.limits` (CPU, memory) and optional `blkio_config` (disk I/O) per service. Production files are never modified.
+The overlay covers the services the stack's compose config actually defines and injects `deploy.resources.limits` (CPU, memory), `memswap_limit` and optional `blkio_config` (disk I/O) per service. Production files are never modified.
+
+All enabled stacks of a project share one emulated device: when their combined CPU or memory shares exceed the profile, every service is scaled down so the total fits.
 
 ## Hardware profiles
 
@@ -27,7 +29,7 @@ The overlay injects `deploy.resources.limits` (CPU, memory) and optional `blkio_
 - Docker Compose >= 2.17
 - Python >= 3.11
 - cgroup v2 — check with `cat /sys/fs/cgroup/cgroup.controllers`
-- QEMU binfmt_misc — only for `--arch arm64`
+- QEMU binfmt_misc — only to emulate another architecture, e.g. ARM profiles on an x86 host
 
 ## Installation
 
@@ -54,7 +56,7 @@ All items should show **OK**. A `cgroup v2` warning means CPU/memory limits won'
 
 ### Enable ARM64 emulation (optional)
 
-Required only when using an `arm64` profile (e.g. `rpi4`/`rpi5`) on an x86 host:
+Required to run the ARM profiles (`rpi4`/`rpi5`) on an x86 host. `up` runs their arm64 images by default and refuses to start until QEMU is registered; pass `--native` to apply only the resource limits with host-architecture images:
 
 ```bash
 uv run p4n4-emu setup --arch arm64
@@ -63,11 +65,15 @@ uv run p4n4-emu setup --arch arm64
 ### Start a stack
 
 ```bash
-# IoT stack with Raspberry Pi 5 constraints
+# Inside a p4n4 project: all enabled stacks
+uv run p4n4-emu up --profile rpi5
+uv run p4n4-emu up --profile rpi5 --stack ai     # one stack only
+
+# Outside a project: point at a compose directory (or a parent with per-stack subdirectories)
 uv run p4n4-emu up --stack-dir ~/p4n4/stacks/iot --profile rpi5
 
-# All stacks + synthetic sensor data
-uv run p4n4-emu up --stack all --stack-dir ~/p4n4/docker --profile rpi5 --sim
+# All stacks + synthetic sensor data from 3 devices
+uv run p4n4-emu up --stack all --stack-dir ~/p4n4/stacks --profile rpi5 --sim --sim-devices 3
 ```
 
 Use `--dry-run` to inspect the generated overlay before any containers start:
@@ -88,12 +94,13 @@ uv run p4n4-emu down --profile rpi5 --volumes  # stop and remove data volumes
 ## Command reference
 
 ```
-p4n4-emu setup [--arch arm64] [--check-only]
-p4n4-emu up    [--profile PROFILE] [--stack iot|ai|edge|all]
-               [--stack-dir PATH] [--arch arm64] [--sim] [--dry-run]
-p4n4-emu down  [--profile PROFILE] [--stack iot|ai|edge|all]
+p4n4-emu setup [--arch arm64|armv7] [--check-only]
+p4n4-emu up    [--profile PROFILE] [--stack iot|ai|edge|iot,ai|all]
+               [--stack-dir PATH] [--arch arm64|armv7|x86_64 | --native]
+               [--sim] [--sim-interval 2.0] [--sim-devices 1] [--dry-run]
+p4n4-emu down  [--profile PROFILE] [--stack iot|ai|edge|iot,ai|all]
                [--stack-dir PATH] [--volumes]
-p4n4-emu status [--profile PROFILE] [--stack iot|ai|edge|all]
+p4n4-emu status [--profile PROFILE] [--stack iot|ai|edge|iot,ai|all]
 p4n4-emu profile list
 p4n4-emu profile show <name>
 p4n4-emu sim start [--interval 2.0] [--devices 1] [--mqtt-host p4n4-mqtt]
@@ -101,15 +108,19 @@ p4n4-emu sim stop
 p4n4-emu sim status
 ```
 
+Without `--stack`, `up`/`down`/`status` target the enabled stacks of the surrounding p4n4 project (`.p4n4.json` is found by walking up from the current directory), falling back to `iot`. Stack directories resolve in this order: `--stack-dir` (its `<stack>/` subdirectory first), then the project layout (flat root or `<project>/<stack>/`), then a `<stack>/` or compose file next to the current directory.
+
+`--arch` overrides the profile's architecture; without it, ARM profiles emulate arm64 and x86 profiles run natively. `--native` never forces a platform.
+
 ## Sensor simulator
 
-The built-in simulator (`--sim`) publishes synthetic MQTT payloads on topics the p4n4 stack already consumes:
+The built-in simulator (`--sim`) publishes synthetic MQTT payloads on the topics the p4n4 stack consumes, `sensors/<device-id>/<measurement>`:
 
 ```
-sensors/temperature   {"value": 23.4, "unit": "C", "device": "emu-sensor-0"}
-sensors/humidity      {"value": 58.2, "unit": "%", "device": "emu-sensor-0"}
-sensors/pressure      {"value": 1012.7, "unit": "hPa", "device": "emu-sensor-0"}
-sensors/raw           {"values": [0.01, -0.02, 1.00], "cpu_pct": 42.3, "device": "emu-sensor-0"}
+sensors/emu-sensor-0/temperature   {"value": 23.4, "unit": "C"}
+sensors/emu-sensor-0/humidity      {"value": 58.2, "unit": "%"}
+sensors/emu-sensor-0/pressure      {"value": 1012.7, "unit": "hPa"}
+sensors/emu-sensor-0/raw           {"values": [0.01, -0.02, 1.00], "cpu_pct": 42.3}
 ```
 
 Run standalone against a local Mosquitto:

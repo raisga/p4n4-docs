@@ -24,21 +24,21 @@ Or start everything with: `p4n4 up` (starts all enabled stacks in dependency ord
 ## Pull models
 
 ```bash
-./ollama/pull-models.sh llama3.2
+./scripts/pull-models.sh llama3.2
 # or
 docker exec p4n4-ollama ollama pull llama3.2
 ```
 
 ## n8n workflows
 
-Starter workflows are in `n8n/workflows/`:
+Starter workflows are in `config/n8n/workflows/`:
 
 | Workflow | Description |
 |----------|-------------|
-| `alert-enrichment.json` | Enrich MQTT alerts with LLM analysis |
-| `scheduled-digest.json` | Periodic telemetry summary via Ollama |
-| `device-onboarding.json` | Auto-register new MQTT devices |
-| `incident-escalation.json` | Classify and escalate critical alerts |
+| `alert-enrichment.json` | Subscribes to `inference/+/result`; sends low-confidence results to Ollama for analysis |
+| `scheduled-digest.json` | Hourly telemetry summary from InfluxDB via Ollama |
+| `device-onboarding.json` | Listens on `devices/+/register`; registers new devices and confirms over MQTT |
+| `incident-escalation.json` | Listens on `alerts/+/critical`; classifies severity via Ollama and publishes to `alerts/escalated` |
 
 Import them via the n8n UI or mount the directory as a volume.
 
@@ -53,4 +53,4 @@ Uncomment the `deploy.resources` block in `docker-compose.override.yml` for NVID
 | `N8N_BASIC_AUTH_USER` / `_PASSWORD` | n8n UI credentials |
 | `N8N_ENCRYPTION_KEY` | n8n data encryption key |
 | `LETTA_SERVER_PASSWORD` | Letta API password |
-| `INFLUXDB_ADMIN_TOKEN` | Shared with IoT stack (must match) |
+| `INFLUXDB_TOKEN` / `INFLUXDB_ORG` / `INFLUXDB_BUCKET` | Shared with IoT stack (must match) |

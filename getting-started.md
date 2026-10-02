@@ -18,13 +18,15 @@ p4n4 --version
 ```bash
 p4n4 init my-project                 # IoT stack only (default)
 p4n4 init my-project --layer iot,ai  # multiple stacks
-p4n4 init my-project --layer all     # everything
+p4n4 init my-project --layer all     # iot + ai + edge
 ```
 
 The interactive wizard prompts for configuration (InfluxDB organisation, timezone,
-service passwords — leave blank to auto-generate). It then:
+service passwords, including the Node-RED editor login — leave blank to auto-generate).
+It then:
 
-- Fetches stack files from the canonical stack repos (`p4n4-iot`, `p4n4-ai`).
+- Fetches stack files from the canonical stack repos (`p4n4-iot`, `p4n4-ai`, `p4n4-edge`),
+  or from local checkouts passed with `--source-iot` / `--source-ai` / `--source-edge`.
 - Generates cryptographically secure secrets and writes them to `.env`.
 - Creates a `.p4n4.json` project manifest.
 
@@ -42,7 +44,7 @@ my-project/
 ```
 
 A **multi-layer** project gives each stack its own subdirectory, so the stacks run
-as separate Compose projects (the AI stack attaches to the `p4n4-net` network that
+as separate Compose projects (the AI and edge stacks attach to the `p4n4-net` network that
 the IoT stack creates):
 
 ```
@@ -53,11 +55,17 @@ my-project/
 │   ├── .env
 │   ├── config/
 │   └── scripts/
-└── ai/
+├── ai/
+│   ├── docker-compose.yml
+│   ├── .env
+│   ├── config/
+│   └── scripts/
+└── edge/
     ├── docker-compose.yml
     ├── .env
-    ├── config/
-    └── scripts/
+    ├── runner/
+    ├── edge-impulse/models/    ← .eim models (never committed)
+    └── onnx/models/            ← .onnx models (never committed)
 ```
 
 Shared values such as `INFLUXDB_TOKEN` are written identically to every layer's
@@ -83,12 +91,16 @@ With no argument, stacks start in dependency order:
 
 | Service | URL |
 |---------|-----|
-| Node-RED | http://localhost:1880 |
+| Node-RED | http://localhost:1880 (log in with `NODE_RED_USER` / `NODE_RED_PASSWORD` from the IoT `.env`) |
 | Grafana | http://localhost:3000 |
 | InfluxDB | http://localhost:8086 |
 | n8n | http://localhost:5678 |
 | Letta | http://localhost:8283 |
 | Ollama | http://localhost:11434 |
+| Inference runner | http://localhost:8080/health |
+
+MQTT is on `localhost:1883` (TCP) and `:9001` (WebSocket). Credentials are in each
+layer's `.env`; `p4n4 secret show` prints them masked.
 
 ## Stop everything
 
@@ -96,8 +108,22 @@ With no argument, stacks start in dependency order:
 p4n4 down
 ```
 
+## Send a test reading
+
+Devices publish JSON to `sensors/<device-id>/<measurement>`:
+
+```bash
+mosquitto_pub -h localhost -t sensors/test-01/temperature -m '{"value": 23.5, "unit": "C"}'
+```
+
+Node-RED writes it to InfluxDB, and it shows up on Grafana's *Sensor Data* panel. With
+the edge stack running, publish a feature vector to `sensors/<device-id>/raw` to get a
+result on `inference/<device-id>/result` (mock mode until you deploy a model).
+
 ## Next steps
 
 - [IoT stack reference](stacks/iot-stack.md)
 - [AI stack reference](stacks/ai-stack.md)
+- [Edge stack reference](stacks/edge-stack.md)
 - [CLI reference](reference/cli-reference.md)
+- [REST API](reference/api.md) and [dashboard](reference/dashboard.md)

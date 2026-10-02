@@ -34,14 +34,14 @@ raisga/
     ├── stacks/
     │   ├── iot             ← p4n4-iot: Mosquitto · Node-RED · InfluxDB · Grafana
     │   ├── ai              ← p4n4-ai: Ollama · Letta · n8n
-    │   └── edge            ← p4n4-edge: Edge Impulse inference stack
+    │   └── edge            ← p4n4-edge: inference runner (Edge Impulse · ONNX)
     ├── core/
     │   ├── lib             ← p4n4-lib: shared library (stacks ↔ clients)
     │   └── hw              ← p4n4-hw: hardware designs + RPi5 GPIO scripts
     ├── clients/
     │   ├── cli             ← p4n4-cli: Python CLI (published to PyPI as `p4n4`)
     │   ├── api             ← p4n4-api: REST API gateway
-    │   └── dashboard       ← p4n4-dashboard: web dashboard client
+    │   └── dashboard       ← p4n4-dashboard: Flutter dashboard app
     ├── tools/
     │   ├── templates       ← p4n4-templates: community template registry & index
     │   └── emu             ← p4n4-emu: workstation hardware emulator
@@ -65,13 +65,13 @@ raisga/
 | `p4n4` | — | meta / monorepo | — | — | Umbrella: architecture, ADRs, all sub-repos as submodules |
 | `p4n4-iot` | `stacks/iot` | stack | ✓ | — | Docker Compose IoT stack; owns `p4n4-net` bridge |
 | `p4n4-ai` | `stacks/ai` | stack | ✓ | — | Docker Compose GenAI stack; attaches to `p4n4-net` |
-| `p4n4-edge` | `stacks/edge` | stack | ✓ | — | Docker Compose Edge Impulse stack; attaches to `p4n4-net` |
+| `p4n4-edge` | `stacks/edge` | stack | ✓ | — | Docker Compose inference stack (Edge Impulse / ONNX); attaches to `p4n4-net` |
 | `p4n4-lib` | `core/lib` | library | ✓ | — | Shared library mediating between stacks and clients |
 | `p4n4-hw` | `core/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
 | `p4n4-templates` | `tools/templates` | registry | — | Git-native | Community template index + example templates |
 | `p4n4-cli` | `clients/cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
-| `p4n4-api` | `clients/api` | service | ✓ | — | REST API gateway (port 8000) |
-| `p4n4-dashboard` | `clients/dashboard` | frontend | ✓ | — | Web dashboard client |
+| `p4n4-api` | `clients/api` | service | ✓ | — | REST API gateway (port 8000); FastAPI on `p4n4-lib`, see [REST API](api.md) |
+| `p4n4-dashboard` | `clients/dashboard` | frontend | ✓ | — | Flutter app (desktop + mobile), white-label; see [Dashboard](dashboard.md) |
 | `p4n4-emu` | `tools/emu` | tool | ✓ | — | Workstation hardware emulator (Docker resource constraints + QEMU) |
 | `p4n4-docs` | `web/docs` | docs | — | — | Full technical reference; deployable as a static site |
 | `p4n4.com` | `web/p4n4.com` | website | — | — | Public-facing website (jraleman/p4n4.com) |
@@ -153,7 +153,8 @@ p4n4-iot/
 │   │   └── acl
 │   │
 │   ├── node-red/
-│   │   ├── flows.json          ← version-controlled base flows (IoT only)
+│   │   ├── flows/
+│   │   │   └── flows.json      ← version-controlled base flows (IoT only)
 │   │   └── settings.js
 │   │
 │   └── grafana/
@@ -222,21 +223,32 @@ networks:
 
 ---
 
-### 3.5 `p4n4-edge` (Edge Impulse stack)
+### 3.5 `p4n4-edge` (Edge AI stack)
 
 Fully independent. Attaches to `p4n4-net` as external when used with the IoT stack, but can also run standalone on a dedicated network.
 
 ```
 p4n4-edge/
 ├── docker-compose.yml
-├── docker-compose.override.yml
+├── docker-compose.override.yml.example
+├── Makefile                    ← make up, make deploy-model, make test-inference
 ├── .env.example
 ├── .gitignore
 ├── README.md
 │
-└── edge-impulse/
-    └── models/
-        └── .gitkeep            ← .eim binaries are NEVER committed; provided at deploy time
+├── runner/
+│   ├── Dockerfile              ← python:3.11-slim
+│   ├── runner.py               ← MQTT → model (.eim / .onnx / mock) → MQTT + InfluxDB; HTTP API
+│   └── requirements.txt
+├── edge-impulse/
+│   └── models/
+│       └── .gitkeep            ← .eim binaries are NEVER committed; provided at deploy time
+├── onnx/
+│   └── models/
+│       └── .gitkeep            ← .onnx files are NEVER committed
+└── scripts/
+    ├── selector.sh
+    └── check_env_example.py
 ```
 
 **Network block in `docker-compose.yml`:**
@@ -254,7 +266,7 @@ networks:
 The `pip install p4n4` package. A thin Typer/Rich presentation layer: all shared,
 framework-free logic lives in `p4n4-lib` (see the module table below). Scaffolding
 fetches stack files from the canonical stack repos at init time (`git clone --depth 1`),
-or from a local checkout via `--source-iot` / `--source-ai` for offline use.
+or from a local checkout via `--source-iot` / `--source-ai` / `--source-edge` for offline use.
 
 ```
 p4n4-cli/
@@ -568,21 +580,22 @@ never drift between stacks.
 
 **Standalone (without CLI):**
 Each stack repo ships its own `.env.example`. Copy to `.env` and fill in values manually.
-Cross-stack secrets (e.g. `INFLUXDB_ADMIN_TOKEN` used by both `p4n4-iot` and `p4n4-ai`) must be
+Cross-stack secrets (e.g. `INFLUXDB_TOKEN` used by `p4n4-iot`, `p4n4-ai` and `p4n4-edge`) must be
 kept consistent manually — document this prominently in each stack's README.
 
 ### 5.3 Shared Secret Reference
 
 | Variable | Owner stack | Consumed by |
 |---|---|---|
-| `MQTT_USER` / `MQTT_PASSWORD` | `p4n4-iot` | Node-RED |
-| `INFLUXDB_ADMIN_TOKEN` | `p4n4-iot` | Node-RED, Grafana, n8n |
+| `MQTT_USER` / `MQTT_PASSWORD` | `p4n4-iot` | Node-RED, edge runner |
+| `INFLUXDB_TOKEN` | `p4n4-iot` | Node-RED, Grafana, n8n, edge runner |
 | `INFLUXDB_ORG` / `INFLUXDB_BUCKET` | `p4n4-iot` | Node-RED, Grafana, n8n |
-| `GF_SECURITY_ADMIN_PASSWORD` | `p4n4-iot` | Grafana |
+| `GRAFANA_USER` / `GRAFANA_PASSWORD` | `p4n4-iot` | Grafana |
+| `NODE_RED_USER` / `NODE_RED_PASSWORD` | `p4n4-iot` | Node-RED editor login |
 | `N8N_BASIC_AUTH_USER` / `_PASSWORD` | `p4n4-ai` | n8n |
 | `N8N_ENCRYPTION_KEY` | `p4n4-ai` | n8n |
 | `LETTA_SERVER_PASSWORD` | `p4n4-ai` | Letta, Node-RED |
-| `EI_API_KEY` | `p4n4-edge` | Edge Impulse containers (optional) |
+| `EI_API_KEY` | `p4n4-edge` | edge runner (optional) |
 
 ---
 
