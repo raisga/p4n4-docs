@@ -64,6 +64,8 @@ This document is the canonical specifications roadmap for the p4n4 platform. It 
 
 Each stack repo uses independent semver. The `p4n4-cli` `compat.py` module enforces minimum stack versions at runtime. The table below reflects the compatibility contract per CLI release.
 
+> **Status (CLI 0.2.0):** planned, not implemented. There is no `compat.py` yet, and the stack repos don't tag releases: `p4n4 init` scaffolds each stack from its `main` branch. The matrix below is the target contract.
+
 | CLI Version | p4n4-iot | p4n4-ai  | p4n4-edge |
 |-------------|----------|----------|-----------|
 | 0.1.x       | >=0.1.0  | >=0.1.0  | >=0.1.0   |
@@ -78,6 +80,8 @@ Each stack repo uses independent semver. The `p4n4-cli` `compat.py` module enfor
 ## 3. Feature Dependency Map
 
 ### 3.1 Directed Dependency Graph
+
+> **Status (CLI 0.2.0):** 0.2.0 shipped a different scope from the v0.2 milestone below: the multi-layer project layout, the `edge` and `dashboard` layers, the external MQTT broker bridge, Node-RED login, and the shared `p4n4-lib` package. The Intelligence Layer features (F-0.2.1 to F-0.2.6) are still planned.
 
 ```
 v0.1 Foundation (planned — no external dependencies)

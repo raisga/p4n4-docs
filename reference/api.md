@@ -36,7 +36,7 @@ Interactive docs are at `/swagger-ui` and the spec at `/openapi.json`.
 
 ## Endpoints
 
-🔒 needs an `operator` or `admin` access token (`Authorization: Bearer <token>`).
+🔒 needs a `normie`, `operator` or `admin` access token (`Authorization: Bearer <token>`).
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -47,7 +47,7 @@ Interactive docs are at `/swagger-ui` and the spec at `/openapi.json`.
 | `POST` | `/api/v1/auth/refresh` | Refresh token → new pair; each refresh token works once |
 | `POST` | `/api/v1/auth/logout` | Revoke the refresh token and its whole sign-in |
 | `GET` | `/api/v1/auth/me` | 🔒 Signed-in user and role |
-| `GET` | `/api/v1/project` | 🔒 Manifest, layout (`flat`/`multi`) and per-stack directories |
+| `GET` | `/api/v1/project` | 🔒 Manifest (with its optional `template` and `dashboard` blocks, `null` when absent), layout (`flat`/`multi`) and per-stack directories |
 | `GET` | `/api/v1/project/validate` | 🔒 `p4n4 validate` checks as `{ok, passed, errors}` |
 | `GET` | `/api/v1/stacks` | 🔒 Compose service status for every enabled stack (`503` if Docker is unreachable) |
 | `GET` | `/api/v1/stacks/{stack}` | 🔒 One stack (`iot`, `ai`, `edge`); `404` if not enabled |
@@ -72,17 +72,23 @@ isn't one, for example in a VM. `inference_ms` will be added with the edge runne
 
 ```bash
 p4n4-api users list
-p4n4-api users add alice                  # operator by default; --role admin
+p4n4-api users add alice                  # operator by default; --role normie|admin
 p4n4-api users passwd alice               # also signs alice out everywhere
 p4n4-api users role alice admin
 p4n4-api users remove alice
 echo "$PASSWORD" | p4n4-api users add alice --password-stdin
+p4n4-api users dev                        # development: admin, power, normie
 ```
+
+For development, `P4N4_API_DEV_USERS=true` (or `p4n4-api users dev`) creates one account per
+dashboard view (`admin`, `power`, `normie`) with the public password `p4n4`, keeping any
+that already exist. Never use it on a reachable deployment.
 
 | Role | Can |
 |------|-----|
-| `operator` | Read every endpoint above |
-| `admin` | Everything an operator can, plus the planned write endpoints (device registry, stack control) |
+| `normie` | Read project, stack, edge, telemetry, inference results and job progress; chat with Ollama models and Letta agents |
+| `operator` | Everything a normie can, plus the device registry, MQTT publish, inference and one-shot generation |
+| `admin` | Everything an operator can, plus users, devices, stack control, container logs and the audit log |
 
 The role is read from the database on every request, so role changes and removals apply
 immediately. A `device` role arrives with the device registry.

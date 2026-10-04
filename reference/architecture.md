@@ -25,7 +25,8 @@
 p4n4 is organised across **14 repositories** under the `raisga` GitHub organisation (plus one under
 `jraleman`). Each repository has a single, well-defined responsibility and can be developed,
 versioned, and released independently. The `p4n4` umbrella repo is a **monorepo** that aggregates
-all sub-repos as Git submodules, grouped by concern.
+the platform's sub-repos as Git submodules, grouped by concern. The websites (`p4n4-blog` and
+`p4n4.com`) are separate repositories, not submodules.
 
 ```
 raisga/
@@ -45,10 +46,11 @@ raisga/
     ├── tools/
     │   ├── templates       ← p4n4-templates: community template registry & index
     │   └── emu             ← p4n4-emu: workstation hardware emulator
-    └── web/
-        ├── docs            ← p4n4-docs: full technical documentation site (this repo)
-        ├── p4n4.com        ← p4n4.com: public-facing website (jraleman/p4n4.com)
-        └── blog            ← p4n4-blog: project blog
+    └── docs                ← p4n4-docs: full technical documentation site (this repo)
+
+Outside the umbrella (not submodules):
+    raisga/p4n4-blog        ← project blog
+    jraleman/p4n4.com       ← public-facing website
 ```
 
 > **Naming note:** The `p4n4` umbrella repo and the `p4n4` PyPI package (from `p4n4-cli`) share
@@ -71,11 +73,11 @@ raisga/
 | `p4n4-templates` | `tools/templates` | registry | — | Git-native | Community template index + example templates |
 | `p4n4-cli` | `clients/cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
 | `p4n4-api` | `clients/api` | service | ✓ | — | REST API gateway (port 8000); FastAPI on `p4n4-lib`, see [REST API](api.md) |
-| `p4n4-dashboard` | `clients/dashboard` | frontend | ✓ | — | Flutter app (desktop + mobile), white-label; see [Dashboard](dashboard.md) |
+| `p4n4-dashboard` | `clients/dashboard` | frontend | ✓ | — | Flutter web service (`dashboard` layer, port 8088) and desktop/mobile apps, white-label; see [Dashboard](dashboard.md), [ADR-003](../decisions/adr/ADR-003.md) |
 | `p4n4-emu` | `tools/emu` | tool | ✓ | — | Workstation hardware emulator (Docker resource constraints + QEMU) |
-| `p4n4-docs` | `web/docs` | docs | — | — | Full technical reference; deployable as a static site |
-| `p4n4.com` | `web/p4n4.com` | website | — | — | Public-facing website (jraleman/p4n4.com) |
-| `p4n4-blog` | `web/blog` | website | — | — | Project blog |
+| `p4n4-docs` | `docs` | docs | — | — | Full technical reference; deployable as a static site |
+| `p4n4.com` | — | website | — | — | Public-facing website (jraleman/p4n4.com); not a submodule |
+| `p4n4-blog` | — | website | — | — | Project blog; not a submodule |
 
 ---
 
@@ -121,10 +123,7 @@ p4n4/
 ├── tools/
 │   ├── templates/              ← submodule: p4n4-templates
 │   └── emu/                    ← submodule: p4n4-emu
-└── web/
-    ├── docs/                   ← submodule: p4n4-docs (ARCHITECTURE.md lives here)
-    ├── p4n4.com/               ← submodule: jraleman/p4n4.com
-    └── blog/                   ← submodule: p4n4-blog
+└── docs/                       ← submodule: p4n4-docs (ARCHITECTURE.md lives here)
 ```
 
 ---
@@ -470,19 +469,36 @@ can test against realistic edge hardware limits without a physical board.
 p4n4-emu/
 ├── README.md
 ├── guide.md                    ← step-by-step setup and LED toggle guide
+├── TODO.md                     ← remaining work, by priority
 ├── pyproject.toml
 ├── uv.lock
 ├── LICENSE
+├── scripts/install-binfmt.sh   ← QEMU binfmt registration
 ├── p4n4_emu/
 │   ├── cli.py                  ← Typer entrypoint (p4n4-emu command)
+│   ├── commands/               ← setup, up, down, status, logs, profile, sim
 │   ├── profiles/               ← hardware profile definitions (rpi4, rpi5, nuc, mcu-class)
-│   ├── overlay/                ← Compose overlay generator (deploy.resources.limits)
+│   ├── overlays/
+│   │   ├── generator.py        ← per-service limits (deploy.resources.limits, memswap, blkio)
+│   │   ├── paths.py            ← one overlay folder per stack directory; the profile it records
+│   │   └── templates/          ← stack.emu.yml.j2
+│   ├── utils/
+│   │   ├── compose.py          ← docker compose wrapper (project files + overlay)
+│   │   ├── project.py          ← .p4n4.json discovery, flat and multi-layer layouts
+│   │   ├── usage.py            ← live usage (docker stats) vs. applied limits (docker inspect)
+│   │   ├── preflight.py        ← Docker, Compose, cgroup v2 and QEMU checks
+│   │   └── docker_info.py      ← block device behind Docker's data root
 │   ├── sim/
-│   │   └── sensor_sim.py       ← synthetic MQTT sensor publisher
+│   │   └── sensor_sim.py       ← synthetic MQTT sensor publisher (Docker image)
 │   └── hw/
-│       └── gpio_stub.py        ← drop-in RPi.GPIO replacement for workstations
+│       ├── gpio_stub.py        ← drop-in RPi.GPIO replacement, with set_input() to drive pins
+│       └── peripherals.py      ← I2C / SPI / UART stubs
 └── tests/
 ```
+
+`up` writes each stack's overlay to `~/.p4n4-emu/overlays/<stack-dir>-<hash>/<stack>.emu.yml`
+and `down` deletes it. The overlay records its profile in an `x-p4n4-emu` block, so `down`,
+`status` and `logs` need no `--profile`. See the [Emulator reference](emulator.md).
 
 **Hardware profiles:**
 
@@ -528,10 +544,11 @@ p4n4-emu/
 1. p4n4-iot    → creates p4n4-net + starts Mosquitto & InfluxDB first
 2. p4n4-ai     → attaches to p4n4-net; needs Mosquitto (optional) + InfluxDB healthy
 3. p4n4-edge   → attaches to p4n4-net; fully independent of ai stack
+4. dashboard   → attaches to p4n4-net; proxies p4n4-api, Ollama and Letta, so it starts last
 ```
 
 Running `p4n4 up` with no stack argument enforces this order: it starts each stack's
-Compose project in sequence (`iot → ai → edge`); `p4n4 down` stops them in reverse.
+Compose project in sequence (`iot → ai → edge → dashboard`); `p4n4 down` stops them in reverse.
 
 ---
 
@@ -855,4 +872,4 @@ via the existing `p4n4-ai` + `p4n4-iot` repos, plus a `multi-site` example in `p
 
 ---
 
-*Document maintained in `raisga/p4n4-docs` (monorepo path: `web/docs`). Open issues or PRs there for changes.*
+*Document maintained in `raisga/p4n4-docs` (monorepo path: `docs`). Open issues or PRs there for changes.*

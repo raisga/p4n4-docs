@@ -5,11 +5,15 @@ and workflow automation (n8n). It attaches to `p4n4-net` as an external network.
 
 ## Services
 
-| Service | Image | Port | Role |
-|---------|-------|------|------|
-| Ollama | `ollama/ollama:latest` | 11434 | Local LLM runtime |
-| Letta | `letta/letta:latest` | 8283 | AI agent framework with memory |
-| n8n | `n8nio/n8n:latest` | 5678 | Workflow automation |
+| Service | Image | Port | Role | Starts by default |
+|---------|-------|------|------|-------------------|
+| Ollama | `ollama/ollama:latest` | 11434 | Local LLM runtime | Yes |
+| Letta | `letta/letta:latest` | 8283 | AI agent framework with memory | No |
+| n8n | `n8nio/n8n:latest` | 5678 | Workflow automation | No |
+
+Each service sits in a Compose profile of its own name. `COMPOSE_PROFILES` in `.env` lists
+the ones that start, and defaults to `ollama`. Set `COMPOSE_PROFILES=ollama,letta,n8n` to run
+all three; `p4n4 init` generates Letta's and n8n's secrets either way.
 
 ## Prerequisites
 
@@ -50,6 +54,7 @@ Uncomment the `deploy.resources` block in `docker-compose.override.yml` for NVID
 
 | Variable | Description |
 |----------|-------------|
+| `OLLAMA_PORT` | Host port for the Ollama API (default `11434`). Change it when Ollama already runs on the host; containers still use `p4n4-ollama:11434`, and a p4n4-api on the host needs `P4N4_API_OLLAMA_URL` to match |
 | `N8N_BASIC_AUTH_USER` / `_PASSWORD` | n8n UI credentials |
 | `N8N_ENCRYPTION_KEY` | n8n data encryption key |
 | `LETTA_SERVER_PASSWORD` | Letta API password |

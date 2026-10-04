@@ -17,7 +17,7 @@ Interactive project wizard. Scaffolds stack files, generates secrets, writes `.p
 ```bash
 p4n4 init my-project                       # IoT layer (default)
 p4n4 init my-project --layer iot,ai        # multiple layers
-p4n4 init my-project --layer all           # iot + ai + edge
+p4n4 init my-project --layer all           # iot + ai + edge + dashboard
 p4n4 init my-project --no-interactive      # skip wizard, use defaults
 p4n4 init my-project --source-iot ../p4n4-iot   # scaffold from a local checkout (offline)
 ```
@@ -26,18 +26,28 @@ The wizard prompts for the InfluxDB org, timezone and service passwords (blank m
 generate one), including the Node-RED editor password, which is written with
 `NODE_RED_USER=admin` to the IoT `.env`. The edge layer gets the compose file, runner,
 model directories and `.env`, sharing the InfluxDB token, org and timezone with the other
-layers. Unknown layer names are rejected.
+layers. Unknown layer names are rejected. With the IoT layer, the wizard also offers to
+pull topics from an [external MQTT broker](../stacks/iot-stack.md#external-mqtt-broker)
+(host, login, topics, local prefix, TLS).
 
 | Flag | Description |
 |------|-------------|
-| `--layer <names>` | Layers to enable: `iot`, `ai`, `edge`, `all`, or comma-separated |
+| `--layer <names>` | Layers to enable: `iot`, `ai`, `edge`, `dashboard`, `all`, or comma-separated |
 | `--no-interactive` | Skip the wizard and auto-generate all secrets |
 | `--source-iot PATH` / `--source-ai PATH` / `--source-edge PATH` | Use a local stack checkout instead of cloning |
+| `--mqtt-remote HOST[:PORT]` | Bridge topics in from an external MQTT broker (IoT layer) |
+| `--mqtt-remote-user` / `--mqtt-remote-password` | Its login; the password can come from `P4N4_MQTT_REMOTE_PASSWORD` instead |
+| `--mqtt-remote-topics LIST` | Comma-separated topic filters to pull in (default `sensors/#`) |
+| `--mqtt-remote-tls` / `--mqtt-remote-ca FILE` | Connect over TLS; optional CA certificate, copied into the project |
 
 **Layout:** single-layer projects place `docker-compose.yml`, `config/`, `scripts/`, and
 `.env` at the project root. Multi-layer projects give each layer its own subdirectory
 (`<project>/iot/`, `<project>/ai/`, `<project>/edge/`) so the stacks run as separate Compose projects;
 shared `.env` keys (e.g. `INFLUXDB_TOKEN`) are written identically to every layer.
+Each layer's `.env` sets `COMPOSE_PROJECT_NAME`: `<project>` for single-layer projects,
+`<project>-<layer>` for multi-layer ones (lowercased, other characters replaced by `-`). That
+keeps each project's volumes separate. Don't change it on an existing project: Compose would
+switch to new, empty volumes.
 See [Getting Started](../getting-started.md#project-layout).
 
 ---
@@ -143,6 +153,9 @@ p4n4 upgrade iot
 
 - **IoT:** `INFLUXDB_PASSWORD`, `INFLUXDB_TOKEN`, `GRAFANA_PASSWORD`, `NODE_RED_PASSWORD`
 - **AI:** `LETTA_SERVER_PASSWORD`, `N8N_BASIC_AUTH_PASSWORD`, `N8N_ENCRYPTION_KEY`
+
+`MQTT_REMOTE_PASSWORD` (an external broker's login) appears in `show`, fully masked, but is
+never rotated: the external broker issued it.
 
 In multi-layer projects, `rotate` updates every layer's `.env` and writes the **same**
 new value to keys shared across stacks (e.g. `INFLUXDB_TOKEN` in both `iot/.env` and

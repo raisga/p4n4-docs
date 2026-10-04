@@ -129,4 +129,4 @@ python3 scripts/rpi5/p4n4_mqtt_indicator.py [--host HOST] [--port PORT]
 
 ## Workstation development
 
-The GPIO scripts require physical RPi hardware. For workstation development, `p4n4_emu.hw.gpio_stub` is a drop-in `RPi.GPIO` replacement — see the [Emulator reference](emulator.md).
+The GPIO scripts require physical RPi hardware. For workstation development, `p4n4_emu.hw.gpio_stub` is a drop-in `RPi.GPIO` replacement — see the [Emulator reference](emulator.md). The scripts run under it unchanged, including `p4n4_button_handler.py`'s edge detection on GPIO 27. Press the button from a test or a REPL with `GPIO.set_input(27, GPIO.LOW)` and release it with `GPIO.set_input(27, GPIO.HIGH)`. Two presses within 0.4 s count as a double press.

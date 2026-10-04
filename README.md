@@ -25,7 +25,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | Stack | Services |
 |-------|---------|
 | [IoT](stacks/iot-stack.md) | Eclipse Mosquitto · Node-RED · InfluxDB · Grafana |
-| [AI](stacks/ai-stack.md) | Ollama · Letta · n8n |
+| [AI](stacks/ai-stack.md) | Ollama (+ optional Letta · n8n) |
 | [Edge](stacks/edge-stack.md) | Inference runner (Edge Impulse `.eim` · ONNX · mock) |
 
 **Minimum requirements:** 4 GB RAM · 10 GB disk · Docker 24+ with Compose v2 · Python 3.11+
@@ -40,6 +40,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [IoT Stack](stacks/iot-stack.md) | Mosquitto · Node-RED · InfluxDB · Grafana reference |
 | [AI Stack](stacks/ai-stack.md) | Ollama · Letta · n8n reference |
 | [Edge Stack](stacks/edge-stack.md) | Inference runner, model backends, HTTP API |
+| [Dashboard Service](stacks/dashboard.md) | Web UI on port 8088 with a same-origin proxy |
 | [CLI Reference](reference/cli-reference.md) | All `p4n4` commands |
 | [REST API](reference/api.md) | p4n4-api: sign-in, project, stack and edge metrics endpoints |
 | [Dashboard](reference/dashboard.md) | p4n4-dashboard: Flutter app for desktop and mobile |
@@ -47,11 +48,18 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Hardware](reference/hardware.md) | p4n4-hw: KiCad designs, RPi5 GPIO scripts |
 | [Emulator](reference/emulator.md) | p4n4-emu: workstation hardware emulation |
 | [Security](guides/security.md) | Hardening guide |
+| [Deploying a template](guides/deployment.md) | Rehearse a template under p4n4-emu, then deploy it to Hetzner Cloud or a host you bring (GCP example) |
+| [Use case: greenhouse telemetry](use-cases/greenhouse-telemetry.md) | `mqtt-influx-grafana` template + p4n4-api + a white-label dashboard, tied together by `.p4n4.json` |
 | [Architecture](reference/architecture.md) | Multi-repository architecture reference |
 | [Design Document](decisions/design.md) | Architecture, data flow, design decisions |
 | [Specifications Roadmap](decisions/specs.md) | Feature specs, acceptance criteria, release milestones |
 | [ADR-001](decisions/adr/ADR-001.md) | Multi-repository architecture decision record |
 | [ADR-002](decisions/adr/ADR-002.md) | Per-layer subdirectories in multi-layer projects |
+| [ADR-003](decisions/adr/ADR-003.md) | The dashboard ships as a web container by default |
+| [AI Harness (draft)](decisions/ai-harness.md) | Building p4n4 projects with coding agents: harness tools, community extras (`stacks/extra/`), the p4n4 Car reference project and its OBD-II spike |
+| [System 1 (draft)](decisions/system1.md) | Fast typed decisions with Laya: spike results, architecture, phases |
+| [Known Issues](project/known-issues.md) | Problems found 2026-09-23 to 09-27, with reproductions; all fixed |
+| [Release checklist, 2026-07](project/todo.md) | Historical: p4n4-lib extraction and multi-layer rollout |
 
 ---
 
@@ -216,8 +224,7 @@ p4n4/                       (monorepo — you are here)
 ├── tools/
 │   ├── templates/          ← Community templates (p4n4-templates)
 │   └── emu/                ← Hardware emulator for workstation dev (p4n4-emu)
-└── web/
-    └── docs/               ← this documentation (p4n4-docs)
+└── docs/                   ← this documentation (p4n4-docs)
 ```
 
 ---

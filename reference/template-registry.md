@@ -22,8 +22,42 @@ p4n4 template list
 
 | Name | Stacks | Description |
 |------|--------|-------------|
-| `factory-baseline` | iot + ai + edge | Full stack for discrete manufacturing |
-| `iot-minimal` | iot | Minimal IoT-only starter |
+| `mqtt-influx-grafana` | iot | MQTT → Telegraf → InfluxDB + file archive → Grafana. See the [greenhouse use case](../use-cases/greenhouse-telemetry.md) |
+| `factory-baseline` *(planned)* | iot + ai + edge | Full stack for discrete manufacturing |
+| `iot-minimal` *(planned)* | iot | Minimal IoT-only starter |
+
+`p4n4 template` isn't implemented yet. Copy a template directory to start a project
+(`cp -r mqtt-influx-grafana my-project`). Each one runs on its own.
+
+## Project manifest
+
+A template ships a `.p4n4.json` with two optional blocks besides `schema_version`,
+`project` and `layers`:
+
+```json
+{
+  "template": { "name": "mqtt-influx-grafana", "version": "0.2.0" },
+  "dashboard": {
+    "grafana_path": "/d/p4n4-telemetry/telemetry",
+    "tabs": ["services", "edge", "grafana"],
+    "theme": "theme",
+    "cameras": [{ "id": "floor", "name": "Sales floor", "port": 1984, "path": "/api/stream.mjpeg?src=floor" }]
+  }
+}
+```
+
+| Key | Used by |
+|---|---|
+| `template` | `p4n4 validate`: for a project made from a template, it checks `docker-compose.yml` and that `.env` sets every variable in `.env.example`, instead of the base stack's files |
+| `dashboard.grafana_path` | p4n4-dashboard, via `GET /api/v1/project`: the Grafana tab opens this page unless the admin set one. The registry validator checks that its uid is a provisioned dashboard |
+| `dashboard.tabs` | p4n4-dashboard: hides the tabs not listed (`services`, `edge`, `agent`, `grafana`, `video`) while connected |
+| `dashboard.cameras` | p4n4-dashboard: the Video tab's cameras until the deployment saves its own. Each is `{id, name}` plus an absolute http(s) `url`, or a `port` and `path` on the host the dashboard is connected to. The registry validator checks that a `port` is published by one of the template's services, and that a template listing `video` has cameras |
+| `dashboard.theme` | p4n4-dashboard's brand tool: `dart run tool/brand.dart install <project>` installs this directory (`brand.json`, `icon.png`, `fonts/`) as a white-label brand. The registry validates it against `schema/theme.schema.json` |
+
+`p4n4 validate` rejects unknown `dashboard` keys, unknown tab names, and a
+`grafana_path` that doesn't start with `/`, and a `theme` outside the project or
+without a `brand.json`, and malformed `cameras` (a bad or repeated id, no name,
+neither or both of `url` and `port`).
 
 ## Contributing a template
 

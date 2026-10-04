@@ -91,6 +91,32 @@ to keep your changes.
 The defaults are placeholders. `p4n4 init` generates real values and
 `p4n4 secret rotate` replaces them.
 
+## External MQTT broker
+
+The local broker can pull topics from another broker, like a long-running
+`mosquitto_sub -h <host> -u <user> -P <password> -t <topic>`, and republish them locally,
+where Node-RED and the edge runner consume them unchanged. It is inbound only: nothing is
+published back. Configure it with `p4n4 init` (the wizard, or `--mqtt-remote`), or set the
+variables in the IoT `.env` and run `docker compose up -d mqtt`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MQTT_REMOTE_HOST` | *(empty: disabled)* | External broker host |
+| `MQTT_REMOTE_PORT` | `8883` with TLS, else `1883` | External broker port |
+| `MQTT_REMOTE_USER` / `MQTT_REMOTE_PASSWORD` | *(empty)* | Login on the external broker |
+| `MQTT_REMOTE_TOPICS` | `sensors/#` | Comma-separated topic filters to pull in |
+| `MQTT_REMOTE_PREFIX` | *(empty)* | Local topic prefix, e.g. `remote/` |
+| `MQTT_REMOTE_QOS` | `0` | Subscription QoS |
+| `MQTT_REMOTE_CLIENT_ID` | `p4n4-bridge-<container id>` | Client ID on the external broker |
+| `MQTT_REMOTE_TLS` | `false` | Connect over TLS |
+| `MQTT_REMOTE_CA_FILE` | system CAs | CA certificate in `config/mosquitto/certs/` |
+| `MQTT_REMOTE_CERT_FILE` / `MQTT_REMOTE_KEY_FILE` | *(empty)* | Client certificate and key for mutual TLS |
+
+Quote a password containing `$` or `#` in single quotes, or Compose will interpolate or
+truncate it (`p4n4 init` does this for you). `make bridge-status` reports whether the bridge
+is connected; it reads the state Mosquitto publishes on
+`$SYS/broker/connection/p4n4-remote/state`.
+
 ## Mosquitto authentication
 
 `config/mosquitto/mosquitto.conf` ships with `allow_anonymous true` for development. For
@@ -118,5 +144,6 @@ make start SERVICE=grafana    # start one service and its dependencies
 make buckets                  # list InfluxDB buckets
 make test-mqtt                # publish test readings
 make test-sandbox             # publish test readings to the sandbox bucket
+make bridge-status            # external broker bridge: connected or not
 make clean                    # stop and remove data volumes
 ```

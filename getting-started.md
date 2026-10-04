@@ -94,10 +94,11 @@ With no argument, stacks start in dependency order:
 | Node-RED | http://localhost:1880 (log in with `NODE_RED_USER` / `NODE_RED_PASSWORD` from the IoT `.env`) |
 | Grafana | http://localhost:3000 |
 | InfluxDB | http://localhost:8086 |
-| n8n | http://localhost:5678 |
-| Letta | http://localhost:8283 |
-| Ollama | http://localhost:11434 |
+| n8n (optional) | http://localhost:5678 (add `n8n` to `COMPOSE_PROFILES` in the AI `.env`) |
+| Letta (optional) | http://localhost:8283 (add `letta` to `COMPOSE_PROFILES` in the AI `.env`) |
+| Ollama | http://localhost:11434 (`OLLAMA_PORT` in the AI `.env`; change it if Ollama already runs on the host) |
 | Inference runner | http://localhost:8080/health |
+| Dashboard (web) | http://localhost:8088 (with the `dashboard` layer) |
 
 MQTT is on `localhost:1883` (TCP) and `:9001` (WebSocket). Credentials are in each
 layer's `.env`; `p4n4 secret show` prints them masked.
