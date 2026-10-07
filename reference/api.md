@@ -1,6 +1,6 @@
 # REST API
 
-`p4n4-api` (`clients/api/`) is the HTTP gateway for a p4n4 project, written in Python
+`p4n4-api` (`api/`) is the HTTP gateway for a p4n4 project, written in Python
 (FastAPI) on top of [`p4n4-lib`](architecture.md). It serves one project, read from
 `P4N4_PROJECT_DIR`, and both flat and multi-layer layouts ([ADR-002](../decisions/adr/ADR-002.md)).
 Its main client is the [dashboard](dashboard.md).
@@ -15,9 +15,9 @@ v0.1 runs on the host, not in a container: stack status shells out to
 `docker compose ps` in each stack directory, so it needs the Docker CLI and daemon access.
 
 ```bash
-cd clients/api
+cd api
 uv venv
-uv pip install -e ../../core/lib -e .
+uv pip install -e ../lib -e .
 
 export P4N4_PROJECT_DIR=~/projects/my-project
 uv run p4n4-api users add admin --role admin   # prompts for a password (10+ characters)

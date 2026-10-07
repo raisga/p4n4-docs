@@ -72,7 +72,7 @@ The public image carries the `p4n4` brand. For a client, build an image with the
 it to a private registry:
 
 ```bash
-cd clients/dashboard
+cd dashboard
 make image THEME=~/projects/greenhouse     # → p4n4-dashboard:<theme id>, only that theme inside
 ```
 

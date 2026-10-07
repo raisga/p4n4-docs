@@ -6,7 +6,7 @@ This guide takes a project created from a [template](../reference/template-regis
 2. **Deploy it to Hetzner Cloud.**
 3. **Deploy it to a host you bring yourself (BYOH)**, using Google Cloud (GCP) as the worked example.
 
-The examples use [`mqtt-influx-grafana`](https://github.com/raisga/p4n4-templates/tree/main/mqtt-influx-grafana), a single-layer `iot` template. The [multi-layer templates](#multi-layer-templates) section covers the differences for `mqtt-influx-grafana-ollama` and `retail-vision`.
+The examples use [`mqtt-influx-grafana`](https://github.com/raisga/p4n4-templates/tree/main/projects/mqtt-influx-grafana), a single-layer `iot` template. The [multi-layer templates](#multi-layer-templates) section covers the differences for `mqtt-influx-grafana-ollama` and `mqtt-influx-grafana-ollama-go2rtc`.
 
 ```
  workstation                              cloud host (Hetzner, GCP, any Linux box)
@@ -57,7 +57,7 @@ If you skip this step, pass `--native` to `up`. You still get the resource limit
 ### 2.2 Create the project
 
 ```bash
-cp -r tools/templates/mqtt-influx-grafana ~/projects/greenhouse
+cp -r tools/templates/projects/mqtt-influx-grafana ~/projects/greenhouse
 cd ~/projects/greenhouse
 cp .env.example .env
 ```
@@ -98,7 +98,7 @@ The emulator applies the template's `docker-compose.yml`, any `docker-compose.ov
 p4n4-emu up --profile rpi5 --sim --sim-devices 3
 ```
 
-Open Grafana at <http://localhost:3000>. The **Telemetry** dashboard is the home page. Watch memory headroom with `docker stats`. A service that hits its limit is OOM-killed and restarted, and `docker inspect <container> --format '{{.State.OOMKilled}}'` shows whether that happened.
+Open Grafana at <http://localhost:3000>. The **Telemetry** dashboard is the home page. Watch headroom with `p4n4-emu status`: it shows each service's CPU and memory use against its limits, highlights values at 90% or more of a limit, and flags containers that don't have their overlay's limits. A service that hits its memory limit is OOM-killed and restarted, and `docker inspect <container> --format '{{.State.OOMKilled}}'` shows whether that happened.
 
 ### 2.5 Check and stop it
 
@@ -198,7 +198,7 @@ Pick one of these:
 |---|---|---|
 | **Private network** (recommended) | You control the devices or a gateway at the site | Join the server and the devices to WireGuard or Tailscale. Bind MQTT to the VPN address (`"100.x.y.z:1883:1883"`) instead of `127.0.0.1` |
 | **MQTT over TLS** | Devices connect over the internet | Add a TLS listener with a password file (below). Open only 8883 |
-| **Bridge from a site broker** | The site already has a broker | Leave MQTT closed. Set `MQTT_REMOTE_*` in `.env` so the server's broker **pulls** `sensors/#` from the site broker ([template README](https://github.com/raisga/p4n4-templates/tree/main/mqtt-influx-grafana#external-mqtt-broker)) |
+| **Bridge from a site broker** | The site already has a broker | Leave MQTT closed. Set `MQTT_REMOTE_*` in `.env` so the server's broker **pulls** `sensors/#` from the site broker ([template README](https://github.com/raisga/p4n4-templates/tree/main/projects/mqtt-influx-grafana#external-mqtt-broker)) |
 
 For MQTT over TLS, edit the listeners in `config/mosquitto/mosquitto.conf`. The template already mounts `config/mosquitto/certs/`. With `per_listener_settings true`, the internal listener stays anonymous for Telegraf and the simulator on `p4n4-net`, and the host binds it to `127.0.0.1` only (see the override above). The public TLS listener requires a login:
 
@@ -468,7 +468,7 @@ services:
 
 ## Multi-layer templates
 
-`mqtt-influx-grafana-ollama` (iot + ai) and `retail-vision` (iot + ai + edge) keep one Compose project per layer (`iot/`, `ai/`, `edge/`). Each layer has its own `.env` ([ADR-002](../decisions/adr/ADR-002.md)). These steps change:
+`mqtt-influx-grafana-ollama` (iot + ai) and `mqtt-influx-grafana-ollama-go2rtc` (iot + ai + edge) keep one Compose project per layer (`iot/`, `ai/`, `edge/`). Each layer has its own `.env` ([ADR-002](../decisions/adr/ADR-002.md)). These steps change:
 
 - **Emulator.** `p4n4-emu up --profile <p>` at the project root starts every layer in dependency order, with the combined limits scaled down to fit one device. Use `--stack ai --native` to keep Ollama out of QEMU.
 - **Secrets.** `INFLUXDB_TOKEN`, `INFLUXDB_ORG` and `INFLUXDB_BUCKET` must be identical in every layer's `.env`. `p4n4 secret rotate` keeps them in sync. Don't edit one file by hand.
@@ -478,7 +478,7 @@ services:
 
 ## Adding the dashboard and API
 
-To serve [p4n4-dashboard](../stacks/dashboard.md) and [p4n4-api](../reference/api.md) from the same host, keep the API off the public interface (`P4N4_API_HOST=172.17.0.1`). Then proxy the dashboard container through Caddy (`reverse_proxy p4n4-dashboard:8088`) and route Grafana through the dashboard's `/grafana/` path (`GRAFANA_SUB_PATH=/grafana/`) to avoid mixed content. The [Security guide](security.md#dashboard) lists the settings. The [greenhouse use case](../use-cases/greenhouse-telemetry.md) ties the template, the API and a white-label dashboard together.
+To serve [p4n4-dashboard](../stacks/dashboard.md) and [p4n4-api](../reference/api.md) from the same host, keep the API off the public interface (`P4N4_API_HOST=172.17.0.1`). Then proxy the dashboard container through Caddy (`reverse_proxy p4n4-dashboard:8088`) and route Grafana through the dashboard's `/grafana/` path (`GRAFANA_SUB_PATH=/grafana/`) to avoid mixed content. The [Security guide](security.md#dashboard) lists the settings. The [greenhouse use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-telemetry.md) ties the template, the API and a white-label dashboard together.
 
 ## Pre-launch checklist
 

@@ -1,6 +1,6 @@
 # Dashboard
 
-`p4n4-dashboard` (`clients/dashboard/`) is a Flutter app for operating a p4n4 deployment.
+`p4n4-dashboard` (`dashboard/`) is a Flutter app for operating a p4n4 deployment.
 It runs on Linux, macOS, Windows, Android and iOS, and can be white-labelled per client.
 
 ## Tabs
@@ -10,7 +10,7 @@ It runs on Linux, macOS, Windows, Android and iOS, and can be white-labelled per
 | **Services** | Launcher for every p4n4 service, with live status | [p4n4-api](api.md) `GET /api/v1/stacks`, or a direct probe of each port when the API is unreachable |
 | **Edge** | CPU, memory, SoC temperature and inference latency, with 2 minutes of history | A metrics URL, by default `GET /api/v1/edge/metrics` ([contract](#edge-metrics-contract)); has a demo mode |
 | **Agent** | Chat with a local model or a stateful agent | Ollama `/api/chat` (streaming) or Letta `/v1/agents/{id}/messages` |
-| **Grafana** | Embedded Grafana, in kiosk mode by default | `http://<host>:3000` |
+| **Grafana** | Embedded Grafana, in kiosk mode by default and in the app's light or dark theme | `http://<host>:3000` |
 | **Video** | Live camera feeds from the edge device, one at a time or in a grid | Any MJPEG stream or JPEG snapshot URL |
 
 ## Admin, power and normie views
@@ -51,7 +51,7 @@ every 30 s while the API is unreachable:
 | `dashboard.cameras` | The Video tab's cameras, until the deployment saves its own; they come before a brand `videoUrl`. Each is `{id, name}` plus an absolute `url`, or a `port` and `path` on the connected host |
 
 Without the API (or before signing in), nothing changes: every
-brand tab and stack is shown. See the [greenhouse use case](../use-cases/greenhouse-telemetry.md).
+brand tab and stack is shown. See the [greenhouse use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-telemetry.md).
 
 ## Run as a service
 
@@ -60,7 +60,7 @@ Flutter web build and proxies p4n4-api (`/api/`), Ollama (`/ollama/`) and Letta 
 so the browser talks to one origin and the services need no CORS.
 
 ```bash
-cd clients/dashboard
+cd dashboard
 cp .env.example .env
 docker compose up -d          # or `make up-local` to build from source
 ```
@@ -75,7 +75,7 @@ sign-in screen offers a role picker), and bind the container to a LAN address (`
 ## Develop
 
 ```bash
-cd clients/dashboard
+cd dashboard
 flutter pub get
 flutter run -d linux        # or macos, windows, android, ios
 flutter run -d chrome       # web

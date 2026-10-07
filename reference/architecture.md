@@ -22,11 +22,12 @@
 
 ## 1. Overview
 
-p4n4 is organised across **14 repositories** under the `raisga` GitHub organisation (plus one under
+p4n4 is organised across **15 repositories** under the `raisga` GitHub organisation (plus one under
 `jraleman`). Each repository has a single, well-defined responsibility and can be developed,
 versioned, and released independently. The `p4n4` umbrella repo is a **monorepo** that aggregates
 the platform's sub-repos as Git submodules, grouped by concern. The websites (`p4n4-blog` and
-`p4n4.com`) are separate repositories, not submodules.
+`p4n4.com`) are submodules under `web/`, and the private `p4n4-sandbox` is one under
+`projects/sandbox`. All three are set to `update = none`, so a recursive clone skips them.
 
 ```
 raisga/
@@ -36,21 +37,20 @@ raisga/
     │   ├── iot             ← p4n4-iot: Mosquitto · Node-RED · InfluxDB · Grafana
     │   ├── ai              ← p4n4-ai: Ollama · Letta · n8n
     │   └── edge            ← p4n4-edge: inference runner (Edge Impulse · ONNX)
-    ├── core/
-    │   ├── lib             ← p4n4-lib: shared library (stacks ↔ clients)
-    │   └── hw              ← p4n4-hw: hardware designs + RPi5 GPIO scripts
-    ├── clients/
-    │   ├── cli             ← p4n4-cli: Python CLI (published to PyPI as `p4n4`)
-    │   ├── api             ← p4n4-api: REST API gateway
-    │   └── dashboard       ← p4n4-dashboard: Flutter dashboard app
+    ├── lib                 ← p4n4-lib: shared library (stacks ↔ clients)
+    ├── cli                 ← p4n4-cli: Python CLI (published to PyPI as `p4n4`)
+    ├── api                 ← p4n4-api: REST API gateway
+    ├── dashboard           ← p4n4-dashboard: Flutter dashboard app
     ├── tools/
+    │   ├── hw              ← p4n4-hw: hardware designs + RPi5 GPIO scripts
     │   ├── templates       ← p4n4-templates: community template registry & index
     │   └── emu             ← p4n4-emu: workstation hardware emulator
-    └── docs                ← p4n4-docs: full technical documentation site (this repo)
-
-Outside the umbrella (not submodules):
-    raisga/p4n4-blog        ← project blog
-    jraleman/p4n4.com       ← public-facing website
+    ├── docs                ← p4n4-docs: full technical documentation site (this repo)
+    ├── projects/
+    │   └── sandbox         ← p4n4-sandbox: sandbox p4n4 projects for local testing (private)
+    └── web/
+        ├── blog            ← raisga/p4n4-blog: project blog
+        └── p4n4.com        ← jraleman/p4n4.com: public-facing website (private)
 ```
 
 > **Naming note:** The `p4n4` umbrella repo and the `p4n4` PyPI package (from `p4n4-cli`) share
@@ -68,16 +68,17 @@ Outside the umbrella (not submodules):
 | `p4n4-iot` | `stacks/iot` | stack | ✓ | — | Docker Compose IoT stack; owns `p4n4-net` bridge |
 | `p4n4-ai` | `stacks/ai` | stack | ✓ | — | Docker Compose GenAI stack; attaches to `p4n4-net` |
 | `p4n4-edge` | `stacks/edge` | stack | ✓ | — | Docker Compose inference stack (Edge Impulse / ONNX); attaches to `p4n4-net` |
-| `p4n4-lib` | `core/lib` | library | ✓ | — | Shared library mediating between stacks and clients |
-| `p4n4-hw` | `core/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
+| `p4n4-lib` | `lib` | library | ✓ | — | Shared library mediating between stacks and clients |
+| `p4n4-hw` | `tools/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
 | `p4n4-templates` | `tools/templates` | registry | — | Git-native | Community template index + example templates |
-| `p4n4-cli` | `clients/cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
-| `p4n4-api` | `clients/api` | service | ✓ | — | REST API gateway (port 8000); FastAPI on `p4n4-lib`, see [REST API](api.md) |
-| `p4n4-dashboard` | `clients/dashboard` | frontend | ✓ | — | Flutter web service (`dashboard` layer, port 8088) and desktop/mobile apps, white-label; see [Dashboard](dashboard.md), [ADR-003](../decisions/adr/ADR-003.md) |
+| `p4n4-cli` | `cli` | tool | ✓ | `p4n4` on PyPI | Python CLI for scaffolding and lifecycle management |
+| `p4n4-api` | `api` | service | ✓ | — | REST API gateway (port 8000); FastAPI on `p4n4-lib`, see [REST API](api.md) |
+| `p4n4-dashboard` | `dashboard` | frontend | ✓ | — | Flutter web service (`dashboard` layer, port 8088) and desktop/mobile apps, white-label; see [Dashboard](dashboard.md), [ADR-003](../decisions/adr/ADR-003.md) |
 | `p4n4-emu` | `tools/emu` | tool | ✓ | — | Workstation hardware emulator (Docker resource constraints + QEMU) |
 | `p4n4-docs` | `docs` | docs | — | — | Full technical reference; deployable as a static site |
-| `p4n4.com` | — | website | — | — | Public-facing website (jraleman/p4n4.com); not a submodule |
-| `p4n4-blog` | — | website | — | — | Project blog; not a submodule |
+| `p4n4.com` | `web/p4n4.com` | website | — | — | Public-facing website (jraleman/p4n4.com, private); submodule with `update = none` |
+| `p4n4-blog` | `web/blog` | website | — | — | Project blog; submodule with `update = none` |
+| `p4n4-sandbox` | `projects/sandbox` | projects | — | — | Sandbox p4n4 projects for local testing (private); submodule with `update = none` |
 
 ---
 
@@ -113,14 +114,12 @@ p4n4/
 │   ├── iot/                    ← submodule: p4n4-iot
 │   ├── ai/                     ← submodule: p4n4-ai
 │   └── edge/                   ← submodule: p4n4-edge
-├── core/
-│   ├── lib/                    ← submodule: p4n4-lib
-│   └── hw/                     ← submodule: p4n4-hw
-├── clients/
-│   ├── cli/                    ← submodule: p4n4-cli
-│   ├── api/                    ← submodule: p4n4-api
-│   └── dashboard/              ← submodule: p4n4-dashboard
+├── lib/                        ← submodule: p4n4-lib
+├── cli/                        ← submodule: p4n4-cli
+├── api/                        ← submodule: p4n4-api
+├── dashboard/                  ← submodule: p4n4-dashboard
 ├── tools/
+│   ├── hw/                     ← submodule: p4n4-hw
 │   ├── templates/              ← submodule: p4n4-templates
 │   └── emu/                    ← submodule: p4n4-emu
 └── docs/                       ← submodule: p4n4-docs (ARCHITECTURE.md lives here)

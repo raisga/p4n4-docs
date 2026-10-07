@@ -49,7 +49,9 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Emulator](reference/emulator.md) | p4n4-emu: workstation hardware emulation |
 | [Security](guides/security.md) | Hardening guide |
 | [Deploying a template](guides/deployment.md) | Rehearse a template under p4n4-emu, then deploy it to Hetzner Cloud or a host you bring (GCP example) |
-| [Use case: greenhouse telemetry](use-cases/greenhouse-telemetry.md) | `mqtt-influx-grafana` template + p4n4-api + a white-label dashboard, tied together by `.p4n4.json` |
+| [Use case: greenhouse telemetry](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-telemetry.md) | `mqtt-influx-grafana` template + p4n4-api + a white-label dashboard, tied together by `.p4n4.json` |
+| [Use case: greenhouse assistant](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-assistant.md) | `mqtt-influx-grafana-ollama`: the same project plus a local LLM that answers from the readings, and moving a project onto it |
+| [Use case: road traffic](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/road-traffic.md) | `mqtt-influx-grafana-ollama-go2rtc`: road traffic counting with ALPR, with live video, an assistant and plates kept for a retention period |
 | [Architecture](reference/architecture.md) | Multi-repository architecture reference |
 | [Design Document](decisions/design.md) | Architecture, data flow, design decisions |
 | [Specifications Roadmap](decisions/specs.md) | Feature specs, acceptance criteria, release milestones |
@@ -59,6 +61,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [AI Harness (draft)](decisions/ai-harness.md) | Building p4n4 projects with coding agents: harness tools, community extras (`stacks/extra/`), the p4n4 Car reference project and its OBD-II spike |
 | [System 1 (draft)](decisions/system1.md) | Fast typed decisions with Laya: spike results, architecture, phases |
 | [Known Issues](project/known-issues.md) | Problems found 2026-09-23 to 09-27, with reproductions; all fixed |
+| [Releasing](project/releasing.md) | Release set order, `gh release` commands, how to write a release body |
 | [Release checklist, 2026-07](project/todo.md) | Historical: p4n4-lib extraction and multi-layer rollout |
 
 ---
@@ -214,14 +217,12 @@ p4n4/                       (monorepo — you are here)
 │   ├── iot/                ← IoT stack (p4n4-iot)
 │   ├── ai/                 ← GenAI stack (p4n4-ai)
 │   └── edge/               ← Edge AI stack (p4n4-edge)
-├── core/
-│   ├── lib/                ← Shared library (p4n4-lib)
-│   └── hw/                 ← Hardware designs + RPi5 scripts (p4n4-hw)
-├── clients/
-│   ├── cli/                ← Python CLI — pip install p4n4 (p4n4-cli)
-│   ├── api/                ← REST API gateway (p4n4-api)
-│   └── dashboard/          ← Flutter dashboard app (p4n4-dashboard)
+├── lib/                    ← Shared library (p4n4-lib)
+├── cli/                    ← Python CLI — pip install p4n4 (p4n4-cli)
+├── api/                    ← REST API gateway (p4n4-api)
+├── dashboard/              ← Flutter dashboard app (p4n4-dashboard)
 ├── tools/
+│   ├── hw/                 ← Hardware designs + RPi5 scripts (p4n4-hw)
 │   ├── templates/          ← Community templates (p4n4-templates)
 │   └── emu/                ← Hardware emulator for workstation dev (p4n4-emu)
 └── docs/                   ← this documentation (p4n4-docs)

@@ -95,7 +95,16 @@ removes the shared network).
 p4n4 down
 p4n4 down ai
 p4n4 down --volumes        # also remove volumes
+p4n4 down --all            # every p4n4 project on this host, from any directory
 ```
+
+`--all` finds every project with a `p4n4-*` container, lists them, and asks before
+stopping them. Projects that own a network other projects join (iot's `p4n4-net`) stop
+last. With `--volumes` it deletes their data too.
+
+Stacks use fixed container names and host ports, so only one project runs on a host at a
+time. `p4n4 up` checks this before starting anything: if another project holds the names,
+it lists them and prints the command that stops that project (or `p4n4 down --all`).
 
 ---
 

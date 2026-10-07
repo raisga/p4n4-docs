@@ -22,12 +22,17 @@ p4n4 template list
 
 | Name | Stacks | Description |
 |------|--------|-------------|
-| `mqtt-influx-grafana` | iot | MQTT → Telegraf → InfluxDB + file archive → Grafana. See the [greenhouse use case](../use-cases/greenhouse-telemetry.md) |
+| `mqtt-influx-grafana` | iot | MQTT → Telegraf → InfluxDB + file archive → Grafana. See the [greenhouse use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-telemetry.md) |
+| `mqtt-influx-grafana-ollama` | iot + ai | The same pipeline plus a local LLM (Gemma 4 E2B on Ollama) that queries InfluxDB through tool calls. See the [greenhouse assistant use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-assistant.md) |
+| `mqtt-influx-grafana-ollama-go2rtc` | iot + ai + edge | Road traffic counting with ALPR: ingest service (plates kept for a retention period), traffic dashboard without plates, an assistant with fixed numbers and plate lookups, and go2rtc video. See the [road traffic use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/road-traffic.md) |
+| `mqtt-nodered-influx-grafana` | iot | Greenhouse climate control: the same pipeline plus Node-RED rules (fan and valve with hysteresis, manual override, valve watchdog) that publish actuator commands over MQTT, and a dashboard with the reason behind each decision. A simulated greenhouse obeys the commands |
+| `mqtt-influx-grafana-n8n` | iot + ai | Cold-chain compliance: n8n workflows alert on temperature excursions after a grace period, escalate when nobody acknowledges, record the corrective action through a signed link, and email and save a daily record. Mailpit catches the emails in the demo |
+| `mqtt-influx-grafana-ollama-letta` | iot + ai | Maintenance assistant with memory: condition monitoring for pumps and fans plus a Letta agent on a local Ollama model, with an equipment register in core memory, past incidents in archival memory, InfluxDB tools, and maintenance logged to memory and Grafana. Demo history included |
 | `factory-baseline` *(planned)* | iot + ai + edge | Full stack for discrete manufacturing |
 | `iot-minimal` *(planned)* | iot | Minimal IoT-only starter |
 
 `p4n4 template` isn't implemented yet. Copy a template directory to start a project
-(`cp -r mqtt-influx-grafana my-project`). Each one runs on its own.
+(`cp -r projects/mqtt-influx-grafana my-project`). Each one runs on its own.
 
 ## Project manifest
 

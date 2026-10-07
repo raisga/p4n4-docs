@@ -468,7 +468,7 @@ Every question set and every consumer of System 1 follows these thirteen rules. 
 
 ### 6.3 Question sets
 
-A set is a versioned file in the ai stack at `config/system1/questions/<name>.json`. It reaches projects through the ai layer's `config` copy path (`core/lib/p4n4_lib/layers.py:57`). Appendix C has the two v2 sets.
+A set is a versioned file in the ai stack at `config/system1/questions/<name>.json`. It reaches projects through the ai layer's `config` copy path (`lib/p4n4_lib/layers.py:57`). Appendix C has the two v2 sets.
 
 ```json
 {
@@ -558,7 +558,7 @@ Callers publish one message per request to `system1/decisions/<set>`, with QoS 1
 }
 ```
 
-A Node-RED flow in the iot stack writes one point per answer to the `ai_events` bucket, which the iot layer creates (`clients/cli/p4n4/commands/init.py:142`). The measurement is `system1_decision`:
+A Node-RED flow in the iot stack writes one point per answer to the `ai_events` bucket, which the iot layer creates (`cli/p4n4/commands/init.py:142`). The measurement is `system1_decision`:
 - **Tags:** `set`, `question`, `choice`, `caller`, `checkpoint`. Each must match `^[a-z0-9_-]{1,64}$`, or the point is dropped with a warning. This keeps series cardinality bounded by the menus.
 - **Fields:** `confidence` (float); `abstain` and `used` (bool); `set_version` and `latency_ms` (int); `id`, `revision`, `subject` and `state_sha256` (string).
 - **Privacy:** states aren't logged by default, because operator messages can contain personal data. `state_sha256` links a decision to an evaluation example.
@@ -640,7 +640,7 @@ A Node-RED flow in the iot stack writes one point per answer to the `ai_events` 
 - **Key:** `LAYA_API_KEY: ${SYSTEM1_API_KEY:-}`. An empty key makes the service refuse to start, and CI's `config --quiet` still passes without a `.env`.
 - **Healthcheck:** it uses Python because the image has neither curl nor wget.
 
-**`.env.example`.** Append this block. Every key is uncommented for two reasons: `scripts/check_env_example.py` requires every `${VAR}` used in Compose to appear, and `core/lib/p4n4_lib/env.py:23-40` keeps only the keys the template defines.
+**`.env.example`.** Append this block. Every key is uncommented for two reasons: `scripts/check_env_example.py` requires every `${VAR}` used in Compose to appear, and `lib/p4n4_lib/env.py:23-40` keeps only the keys the template defines.
 
 ```dotenv
 # ------------------------------------------------------------------------------
@@ -678,7 +678,7 @@ Releases pin the digest.
 
 **Makefile.** Add a `system1-pull` target (`docker compose run --rm system1-pull`) next to `pull-models`.
 
-### 7.2 `core/lib`
+### 7.2 `lib`
 
 - **`p4n4_lib/secrets.py`:** add `SYSTEM1_API_KEY` to `ROTATABLE_KEYS` (lines 7–16). `rotation_value` gives 64 hex characters for keys that aren't passwords (24–26), above the 32-character minimum.
 - **`p4n4_lib/layers.py`:** don't add `SYSTEM1_API_KEY` to the ai layer's `required_env_keys` (64–73), because `validate.py` (44–56) would then fail every existing ai project. The `config` copy path (57) already carries the question sets.
@@ -689,9 +689,9 @@ Releases pin the digest.
   - the decision-log payload;
   - profile edits that keep other entries in `COMPOSE_PROFILES`.
 
-### 7.3 `clients/cli`
+### 7.3 `cli`
 
-There is no `ai` command group yet: `clients/cli/p4n4/cli.py:20-22` registers `ei`, `template` and `secret`. Specs §8.5 already names `p4n4 ai agent init/list`, and `system1` joins that group:
+There is no `ai` command group yet: `cli/p4n4/cli.py:20-22` registers `ei`, `template` and `secret`. Specs §8.5 already names `p4n4 ai agent init/list`, and `system1` joins that group:
 
 | Command | What it does |
 |---------|--------------|
@@ -703,8 +703,8 @@ There is no `ai` command group yet: `clients/cli/p4n4/cli.py:20-22` registers `e
 | `p4n4 ai system1 eval [<set>] [--no-gates] [--fit-calibration] [--fit-thresholds]` | Runs `<set>.eval.jsonl` and prints the metrics (§10.2). Exits with code 5 (validation error, specs §8.4) when a gate fails. The `--fit-*` options print proposed temperatures or thresholds and never write them |
 
 - **Reaching the service:** `decide` and `eval` call it through `docker compose exec -T system1 python -` with a small client. The CLI never reads the key, and no host port is needed.
-- **`init`:** add `SYSTEM1_API_KEY` to `ai_env_values` (`clients/cli/p4n4/commands/init.py:150-160`), generated with `secretutil.token()` (64 hex characters) like the other secrets, so enabling System 1 later needs no new secret.
-- **`secret rotate`** (`clients/cli/p4n4/commands/secret.py:56-94`): it generates one new value per key, shared by every stack's `.env` (62–68), writes them (85–88), then asks for `p4n4 down && p4n4 up`. For `SYSTEM1_API_KEY` it must also update the n8n credential, so add a post-rotation hook.
+- **`init`:** add `SYSTEM1_API_KEY` to `ai_env_values` (`cli/p4n4/commands/init.py:150-160`), generated with `secretutil.token()` (64 hex characters) like the other secrets, so enabling System 1 later needs no new secret.
+- **`secret rotate`** (`cli/p4n4/commands/secret.py:56-94`): it generates one new value per key, shared by every stack's `.env` (62–68), writes them (85–88), then asks for `p4n4 down && p4n4 up`. For `SYSTEM1_API_KEY` it must also update the n8n credential, so add a post-rotation hook.
 - **The n8n credential:**
   - It is a Header Auth credential with a fixed id (`p4n4-system1`), imported by the CLI with `n8n import:credentials` inside the n8n container. Workflows refer to it by type and name only (specs F-0.2.3, line 446).
   - To verify in S1: that importing plain `data` stores it encrypted.

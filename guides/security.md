@@ -47,7 +47,7 @@ with a modified dashboard. It falls back to a role picker only when the API
 runs with `P4N4_API_AUTH=off` or can't be reached, so keep auth on. For its web service
 (`p4n4-dashboard`, port 8088):
 
-- Optionally add HTTP basic auth as a second layer: `make htpasswd NAME=admin` in `clients/dashboard`, then
+- Optionally add HTTP basic auth as a second layer: `make htpasswd NAME=admin` in `dashboard`, then
   `DASHBOARD_BASIC_AUTH='admin:$2y$…'` (single-quoted) in its `.env`. It covers the UI and
   every proxied route, and the credentials never reach the services behind it.
 - Publish it on a LAN interface only: `DASHBOARD_BIND=<lan-ip>` in its `.env`.

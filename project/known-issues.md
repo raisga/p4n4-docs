@@ -2,7 +2,7 @@
 
 Seven problems found on 2026-09-23 while researching the AI harness design (`docs/decisions/ai-harness.md`), plus problem 8, found on 2026-09-27 while testing the fix for problem 7. All eight problems are fixed. Each section uses the fields of the [bug report template](https://github.com/raisga/p4n4/blob/main/.github/ISSUE_TEMPLATE/bug_report.yml), so it can be filed as an issue in the owning repository. The exception is problem 6, a security issue: report it through a [private security advisory](https://github.com/raisga/p4n4/security/advisories/new), as `SECURITY.md` asks. G-numbers refer to the gap table in §8 of the harness design.
 
-- **Checked against:** `stacks/iot` bef0bb0, `stacks/ai` 564b150, `stacks/edge` cf90d2d, `clients/cli` bc9dea8, `core/lib` 705c393, `tools/emu` 87a896c and `docs` 62dc808.
+- **Checked against:** `stacks/iot` bef0bb0, `stacks/ai` 564b150, `stacks/edge` cf90d2d, `cli` bc9dea8, `lib` 705c393, `tools/emu` 87a896c and `docs` 62dc808.
 - **Environment:** Problem 3 was reproduced by running the CLI from source with Python 3.13 on Windows. The transform output in problem 2 comes from running the Node-RED function code in Node.js. The rest comes from reading the code, plus Node-RED's documentation (problem 6) and source code (problem 7); no containers were started.
 
 | # | Problem | Repository | Severity | Status |
@@ -34,7 +34,7 @@ http://influxdb:8086/api/v2/write?org=ming&bucket=raw_telemetry&precision=ms
 http://influxdb:8086/api/v2/write?org=ming&bucket=sandbox&precision=ms
 ```
 
-The rest of the stack follows `INFLUXDB_ORG`. `p4n4 init` prompts for it (`clients/cli/p4n4/commands/init.py:99`), InfluxDB is initialised with it (`stacks/iot/docker-compose.yml:43`), and the Grafana data sources and bucket scripts read it (`stacks/iot/config/grafana/provisioning/datasources/datasources.yml:19`, `stacks/iot/scripts/init-buckets.sh:21`). Node-RED receives it as well (`docker-compose.yml:77`) but doesn't use it. With any org other than `ming`, InfluxDB rejects every write with 404 because the organisation doesn't exist, so no telemetry or sandbox data is stored.
+The rest of the stack follows `INFLUXDB_ORG`. `p4n4 init` prompts for it (`cli/p4n4/commands/init.py:99`), InfluxDB is initialised with it (`stacks/iot/docker-compose.yml:43`), and the Grafana data sources and bucket scripts read it (`stacks/iot/config/grafana/provisioning/datasources/datasources.yml:19`, `stacks/iot/scripts/init-buckets.sh:21`). Node-RED receives it as well (`docker-compose.yml:77`) but doesn't use it. With any org other than `ming`, InfluxDB rejects every write with 404 because the organisation doesn't exist, so no telemetry or sandbox data is stored.
 
 On the production path the failure is silent. The write nodes don't raise errors (`"senderr": false` at `flows.json:129` and `:229`), and the *Production writes* debug node ships disabled (`"active": false` at `flows.json:142`).
 
@@ -63,7 +63,7 @@ Node-RED writes to the org and buckets set in `.env`.
 
 **Related:** G5.
 
-**Status:** Fixed. Both function nodes build `msg.url` from `INFLUXDB_ORG` and `INFLUXDB_BUCKET` / `INFLUXDB_SANDBOX_BUCKET`, the http request nodes have an empty URL and `senderr: true`, and a Catch node feeds an active *Write errors* debug node. Compose now passes `INFLUXDB_SANDBOX_BUCKET` to Node-RED. The tracked scaffold at `clients/cli/test-project/` still has the old flows.
+**Status:** Fixed. Both function nodes build `msg.url` from `INFLUXDB_ORG` and `INFLUXDB_BUCKET` / `INFLUXDB_SANDBOX_BUCKET`, the http request nodes have an empty URL and `senderr: true`, and a Catch node feeds an active *Write errors* debug node. Compose now passes `INFLUXDB_SANDBOX_BUCKET` to Node-RED. The tracked scaffold at `cli/test-project/` still has the old flows.
 
 ---
 
@@ -126,7 +126,7 @@ Readings can be queried by device and sensor type, and the provisioned panel ren
 ## 3. `p4n4 init --layer all` silently skips edge
 
 - **Affected stack:** p4n4-cli (the fix also touches p4n4-lib)
-- **Where:** `clients/cli/p4n4/commands/init.py:77` and `:166-172`; `core/lib/p4n4_lib/layers.py:75-78`
+- **Where:** `cli/p4n4/commands/init.py:77` and `:166-172`; `lib/p4n4_lib/layers.py:75-78`
 
 ### Description
 
@@ -155,7 +155,7 @@ The project contains only `ai/`, `iot/` and `.p4n4.json`, and the manifest lists
 
 **Related:** G3.
 
-**Status:** Fixed. The edge layer in `core/lib/p4n4_lib/layers.py` now copies `docker-compose.yml`, `runner`, `edge-impulse` and `onnx`, requires those files plus `.env`, and requires `MODEL_BACKEND`, `MQTT_HOST`, `MQTT_PORT`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET_AI_EVENTS` and `TZ`. `p4n4 init` scaffolds edge, sharing the InfluxDB token, org and timezone with the other layers, and has a `--source-edge` option. It also rejects unknown layer names, so the manifest records only layers that were created. Scaffolding now skips `__pycache__` in copied directories. The CLI's CI clones p4n4-edge for the tests. Push p4n4-edge's runner changes (problem 4) before releasing p4n4-lib, because `p4n4 init` clones p4n4-edge.
+**Status:** Fixed. The edge layer in `lib/p4n4_lib/layers.py` now copies `docker-compose.yml`, `runner`, `edge-impulse` and `onnx`, requires those files plus `.env`, and requires `MODEL_BACKEND`, `MQTT_HOST`, `MQTT_PORT`, `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET_AI_EVENTS` and `TZ`. `p4n4 init` scaffolds edge, sharing the InfluxDB token, org and timezone with the other layers, and has a `--source-edge` option. It also rejects unknown layer names, so the manifest records only layers that were created. Scaffolding now skips `__pycache__` in copied directories. The CLI's CI clones p4n4-edge for the tests. Push p4n4-edge's runner changes (problem 4) before releasing p4n4-lib, because `p4n4 init` clones p4n4-edge.
 
 ---
 
@@ -166,7 +166,7 @@ The project contains only `ai/`, `iot/` and `.p4n4.json`, and the manifest lists
 
 ### Description
 
-The runner's HTTP handler serves only `GET /health` and `GET /`. Other paths return 404, and because there is no `do_POST`, any POST returns 501. Specs §8.5 lists `POST /api/v1/infer` and `GET /api/v1/info` (`docs/decisions/specs.md:1045-1046`), and the planned `p4n4 ei infer` (F-0.2.4) depends on the first (`specs.md:465`, `:472`, `:497`). Specs §4.2 lists `ei infer` as not yet implemented, which is why this is rated low. The same line implies that `ei deploy`, `ei run` and `ei status` work, but they only print "not yet implemented" (`specs.md:317`, `clients/cli/p4n4/commands/ei.py:14-34`).
+The runner's HTTP handler serves only `GET /health` and `GET /`. Other paths return 404, and because there is no `do_POST`, any POST returns 501. Specs §8.5 lists `POST /api/v1/infer` and `GET /api/v1/info` (`docs/decisions/specs.md:1045-1046`), and the planned `p4n4 ei infer` (F-0.2.4) depends on the first (`specs.md:465`, `:472`, `:497`). Specs §4.2 lists `ei infer` as not yet implemented, which is why this is rated low. The same line implies that `ei deploy`, `ei run` and `ei status` work, but they only print "not yet implemented" (`specs.md:317`, `cli/p4n4/commands/ei.py:14-34`).
 
 Without an endpoint, the only way to test a model is to publish on the production input topic `sensors/raw` (`runner.py:84`). Each test sample then has side effects:
 
@@ -250,7 +250,7 @@ In the Makefile hints and the README, tell users to run `make up` instead. `dock
 
 Without a login, anyone can read and deploy flows and, because the palette manager is enabled (`settings.js:32`), install nodes from npm. Deploying a flow and installing a node both run code in the Node-RED container: function nodes run JavaScript, the core exec node runs shell commands, and installed nodes are loaded into the runtime. That code can read the container's environment, including `INFLUXDB_TOKEN` (`docker-compose.yml:76`). That token is also InfluxDB's admin token (`docker-compose.yml:45`), so it gives full control of InfluxDB.
 
-The stack's other web UIs have logins: InfluxDB (`docker-compose.yml:41-42`) and Grafana (`:107-108`), with passwords that `p4n4 init` generates or prompts for (`clients/cli/p4n4/commands/init.py:87-112`). Nothing tells users that Node-RED has none. The *Default Credentials* table (`stacks/iot/README.md:253-256`) lists only InfluxDB and Grafana, and `SECURITY.md:42` advises changing the default passwords in `.env`, which doesn't cover Node-RED.
+The stack's other web UIs have logins: InfluxDB (`docker-compose.yml:41-42`) and Grafana (`:107-108`), with passwords that `p4n4 init` generates or prompts for (`cli/p4n4/commands/init.py:87-112`). Nothing tells users that Node-RED has none. The *Default Credentials* table (`stacks/iot/README.md:253-256`) lists only InfluxDB and Grafana, and `SECURITY.md:42` advises changing the default passwords in `.env`, which doesn't cover Node-RED.
 
 ### Steps to reproduce
 
@@ -275,7 +275,7 @@ The editor and the Admin API require a login, as InfluxDB and Grafana do, with a
 
 - In `settings.js`, set `adminAuth` with `type: "credentials"` and custom `users` and `authenticate` functions ([custom user authentication](https://nodered.org/docs/user-guide/runtime/securing-node-red#custom-user-authentication)) that check the username and password against environment variables, for example `NODE_RED_USER` and `NODE_RED_PASSWORD`. Compare the password in constant time, for example with `crypto.timingSafeEqual` on SHA-256 digests, and reject every login if the password variable is unset or empty. This keeps a plain password in `.env`, as for Grafana, so the CLI doesn't need bcrypt. A bcrypt hash in `.env` with the standard `users` list also works, but then `p4n4 init` has to generate the hash.
 - Pass both variables to the container (`docker-compose.yml:74-78`). Add them to `.env.example` and to the *Default Credentials* table in `stacks/iot/README.md`.
-- In `p4n4 init`, generate the password in the non-interactive branch (`init.py:87-96`), prompt for it after the Grafana password (`:109-112`) and add both keys to `iot_env_values` (`:134-148`). Add them to the iot `required_env_keys` (`core/lib/p4n4_lib/layers.py:43-52`) so `p4n4 validate` catches a missing key. Add the password to `ROTATABLE_KEYS` (`core/lib/p4n4_lib/secrets.py:7-16`) so `p4n4 secret rotate` refreshes it.
+- In `p4n4 init`, generate the password in the non-interactive branch (`init.py:87-96`), prompt for it after the Grafana password (`:109-112`) and add both keys to `iot_env_values` (`:134-148`). Add them to the iot `required_env_keys` (`lib/p4n4_lib/layers.py:43-52`) so `p4n4 validate` catches a missing key. Add the password to `ROTATABLE_KEYS` (`lib/p4n4_lib/secrets.py:7-16`) so `p4n4 secret rotate` refreshes it.
 - Where remote access isn't needed, for example on a development machine, consider publishing the port as `"127.0.0.1:1880:1880"`.
 
 **Related:** G8. The harness shouldn't write flows until this is fixed, and then needs a token from `POST /auth/token` first ([Admin API authentication](https://nodered.org/docs/api/admin/oauth)).
@@ -318,11 +318,11 @@ Deploying saves the flows to the project's `flows.json` and starts them.
 - Mount a directory instead of the file, so the rename stays inside one mount. For example, move the file to `config/node-red/flows/flows.json`, mount `./config/node-red/flows:/data/flows` and set `FLOWS: /data/flows/flows.json` in the container's environment. The image passes `FLOWS` to Node-RED on the command line, which overrides `flowFile` in `settings.js` ([Running under Docker](https://nodered.org/docs/getting-started/docker)).
 - Node-RED then also writes `.flows.json.backup` to that directory, and `flows_cred.json` if a node has credentials. Keep both out of version control.
 - On Linux, the host directory must be writable by the container's user, uid 1000 by default (same page).
-- Update the path in `required_files` (`core/lib/p4n4_lib/layers.py:39`) and in the docs.
+- Update the path in `required_files` (`lib/p4n4_lib/layers.py:39`) and in the docs.
 
 **Related:** G9. The harness's `nodered_flows_apply` deploys through the same Admin API, so it fails the same way.
 
-**Status:** Fixed. The flows moved to `config/node-red/flows/flows.json`. Compose mounts `./config/node-red/flows:/data/flows` and sets `FLOWS: /data/flows/flows.json`, and `settings.js` sets `flowFile: 'flows/flows.json'` to match. `.gitignore` covers `flows/flows_cred.json` and `flows/.*.backup`, the iot README notes the uid 1000 requirement, and the path is updated in `core/lib/p4n4_lib/layers.py`, the CLI test and README, `docs` and the website mockups. Tested with Node-RED 4.1.15 run from npm, without Docker: a deploy through the Admin API returned 200 and saved to `flows/flows.json`, with `.flows.json.backup` next to it. Push p4n4-iot before releasing p4n4-lib: `p4n4 init` clones p4n4-iot, and a clone without the new path fails the new `required_files` check.
+**Status:** Fixed. The flows moved to `config/node-red/flows/flows.json`. Compose mounts `./config/node-red/flows:/data/flows` and sets `FLOWS: /data/flows/flows.json`, and `settings.js` sets `flowFile: 'flows/flows.json'` to match. `.gitignore` covers `flows/flows_cred.json` and `flows/.*.backup`, the iot README notes the uid 1000 requirement, and the path is updated in `lib/p4n4_lib/layers.py`, the CLI test and README, `docs` and the website mockups. Tested with Node-RED 4.1.15 run from npm, without Docker: a deploy through the Admin API returned 200 and saved to `flows/flows.json`, with `.flows.json.backup` next to it. Push p4n4-iot before releasing p4n4-lib: `p4n4 init` clones p4n4-iot, and a clone without the new path fails the new `required_files` check.
 
 ---
 

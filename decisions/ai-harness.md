@@ -140,7 +140,7 @@ It also adds constraints the platform hasn't had to meet so far:
 
 | Part | Choice | Notes |
 |---|---|---|
-| Computer | Raspberry Pi 5, 8 GB | Matches `core/hw` and the emulator's `rpi5` profile (4 CPUs, 7 GiB) [source] |
+| Computer | Raspberry Pi 5, 8 GB | Matches `tools/hw` and the emulator's `rpi5` profile (4 CPUs, 7 GiB) [source] |
 | Storage | NVMe SSD on an M.2 HAT | The SD card holds only the boot partition; data lives on the SSD (LUKS2, §3.6) |
 | OBD-II adapter | STN-based USB adapter (OBDLink SX baseline, EX as an alternative) | Genuine chip, much faster serial link than ELM327 clones [upstream]; USB avoids Bluetooth pairing |
 | Power | Car power HAT with ignition (ACC) sense and safe shutdown (e.g. CarPiHAT PRO 5) | Up to 5 A, as a Pi 5 can need [upstream]; picked in the spike (§6.4, S-OBD-3) |

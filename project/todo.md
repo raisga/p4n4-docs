@@ -10,12 +10,12 @@ need the lib on PyPI (task 2).
 
 ---
 
-## 1. Commit and push `core/lib` (p4n4-lib) — FIRST
+## 1. Commit and push `lib` (p4n4-lib) — FIRST
 
 ⚠ The submodule is on a **detached HEAD** (at `133782e`, same commit as `main`).
 
 ```bash
-cd ~/Desktop/p4n4/core/lib
+cd ~/Desktop/p4n4/lib
 git checkout main
 git add -A
 git commit -m "feat: implement shared library extracted from p4n4-cli
@@ -42,7 +42,7 @@ One-time trusted-publishing setup:
 Then release:
 
 ```bash
-cd ~/Desktop/p4n4/core/lib
+cd ~/Desktop/p4n4/lib
 gh release create v0.1.0 --title "v0.1.0" \
   --notes "Initial release: shared library between P4N4 stacks and clients."
 # verify in a scratch venv:
@@ -51,10 +51,10 @@ pip install p4n4-lib==0.1.0
 
 Manual fallback: `uv build && uv publish` with a PyPI API token.
 
-## 3. Commit and push `clients/cli` (p4n4-cli) — after task 1
+## 3. Commit and push `cli` (p4n4-cli) — after task 1
 
 ```bash
-cd ~/Desktop/p4n4/clients/cli
+cd ~/Desktop/p4n4/cli
 git add -A
 git commit -m "feat: multi-layer project layout; extract shared code into p4n4-lib
 
@@ -78,10 +78,10 @@ The `p4n4-lib>=0.1.0` dependency must resolve on PyPI first.
 3. `git commit -m "chore: release 0.2.0"` and push.
 4. `gh release create v0.2.0` — the existing publish workflow uploads to PyPI.
 
-## 5. Commit and push `clients/api` (p4n4-api) — after task 1
+## 5. Commit and push `api` (p4n4-api) — after task 1
 
 ```bash
-cd ~/Desktop/p4n4/clients/api
+cd ~/Desktop/p4n4/api
 git add -A
 git commit -m "feat: bootstrap read-only FastAPI service on p4n4-lib
 
@@ -133,7 +133,7 @@ git push origin main
 
 ```bash
 cd ~/Desktop/p4n4
-git add core/lib clients/cli clients/api tools/emu web/docs
+git add lib cli api tools/emu web/docs
 git commit -m "chore: update submodules for p4n4-lib extraction and multi-layer layout"
 git push
 ```
