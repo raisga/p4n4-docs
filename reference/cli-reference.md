@@ -84,6 +84,10 @@ p4n4 up iot                # IoT stack only
 p4n4 up --no-detach        # foreground mode
 ```
 
+`up` creates the `p4n4-net` network when it's missing, so AI-only and edge-only projects,
+and `p4n4 up ai` while the IoT stack is down, start too. Before starting anything it checks
+that no other project holds the fixed `p4n4-*` container names (see `down --all` below).
+
 ---
 
 ## `p4n4 down [STACK]`
@@ -110,8 +114,9 @@ it lists them and prints the command that stops that project (or `p4n4 down --al
 
 ## `p4n4 status`
 
-Show container status for all enabled stacks. Multi-layer projects print one
-table per stack.
+Show container status for all enabled stacks, including stopped and crashed services.
+Multi-layer projects print one table per stack. It reports an error when Docker or Compose
+fails, instead of "No services found".
 
 ---
 
@@ -158,17 +163,25 @@ p4n4 upgrade iot
 | `rotate` | Re-generate passwords and tokens (see below) |
 | `generate` | Print new secrets to stdout |
 
-`rotate` replaces whichever of these keys are present:
+`rotate` replaces whichever of these keys are present, which their services read at every
+start:
 
-- **IoT:** `INFLUXDB_PASSWORD`, `INFLUXDB_TOKEN`, `GRAFANA_PASSWORD`, `NODE_RED_PASSWORD`
-- **AI:** `LETTA_SERVER_PASSWORD`, `N8N_BASIC_AUTH_PASSWORD`, `N8N_ENCRYPTION_KEY`
+- **IoT:** `NODE_RED_PASSWORD`
+- **AI:** `LETTA_SERVER_PASSWORD`
+
+It doesn't rotate `INFLUXDB_PASSWORD`, `INFLUXDB_TOKEN`, `GRAFANA_PASSWORD` or
+`N8N_ENCRYPTION_KEY` (nor the unused `N8N_BASIC_AUTH_PASSWORD`), and says so. Their services
+keep the value from first setup, so a new value in `.env` alone would lock every client out
+of InfluxDB and Grafana, and stop n8n from starting. The
+[Security guide](../guides/security.md#secret-rotation) explains how to change them in the
+service. `show` lists all of them, masked.
 
 `MQTT_REMOTE_PASSWORD` (an external broker's login) appears in `show`, fully masked, but is
 never rotated: the external broker issued it.
 
-In multi-layer projects, `rotate` updates every layer's `.env` and writes the **same**
-new value to keys shared across stacks (e.g. `INFLUXDB_TOKEN` in both `iot/.env` and
-`ai/.env`), so cross-stack credentials never drift.
+In multi-layer projects, `rotate` updates every layer's `.env`. `p4n4 init` writes keys
+shared across stacks (e.g. `INFLUXDB_TOKEN` in both `iot/.env` and `ai/.env`) with the
+**same** value; change those in every layer when you change them by hand.
 
 ---
 

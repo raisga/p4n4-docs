@@ -488,8 +488,10 @@ my-project/               ← multi-layer (`--layer iot,ai`)
 ```
 
 Secrets are generated with Python's `secrets.token_hex()`. Cross-stack values are
-written identically to every stack's `.env`, and `p4n4 secret rotate` keeps them in
-sync by generating one value per key and updating every file that contains it.
+written identically to every stack's `.env`. `p4n4 secret rotate` only replaces the
+secrets their services read at every start (`NODE_RED_PASSWORD`, `LETTA_SERVER_PASSWORD`);
+InfluxDB, Grafana and n8n keep their first values, which are changed in the service (see the
+[Security guide](../guides/security.md#secret-rotation)).
 
 ### Cross-stack shared secrets
 
@@ -535,7 +537,7 @@ When using stacks without the CLI, these must be kept consistent manually across
 
 ### Vulnerability disclosure
 
-Vulnerabilities are reported privately via the process in [SECURITY.md](https://github.com/raisga/p4n4/blob/main/SECURITY.md). Public issues must not contain exploit details.
+Vulnerabilities are reported privately through a [private security advisory](https://github.com/raisga/p4n4/security/advisories/new), as the [Security guide](../guides/security.md#reporting-vulnerabilities) describes. Public issues must not contain exploit details.
 
 ---
 
@@ -657,8 +659,7 @@ The CLI enforces startup order via Docker healthcheck polling:
 ### Manual path (without CLI)
 
 ```bash
-# Step 1: IoT stack (creates p4n4-net)
-docker network create --driver bridge --subnet 172.20.0.0/16 p4n4-net
+# Step 1: IoT stack (its Compose file creates p4n4-net)
 cd stacks/iot && cp .env.example .env
 # edit .env
 docker compose up -d

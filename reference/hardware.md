@@ -21,7 +21,8 @@ hw/
 
 ## PCB Designs
 
-All designs use [KiCad](https://www.kicad.org/) v8+.
+All designs use [KiCad](https://www.kicad.org/) v8+. They are work in progress: the board and
+PCB files are still empty placeholders.
 
 | Design | Location | Description |
 |--------|----------|-------------|
@@ -37,10 +38,20 @@ All scripts run on a **Raspberry Pi 5** and share a common GPIO pin assignment v
 | GPIO 17 (BCM) | Status LED (all scripts) |
 | GPIO 27 (BCM) | Push button (`p4n4_button_handler.py` only) |
 
-**Requirements:**
+**Requirements:** the `RPi.GPIO` API, and `paho-mqtt` 2.0 or later for the MQTT indicator
+only.
+
+On the Raspberry Pi 5, `RPi.GPIO` has to be the [`rpi-lgpio`](https://rpi-lgpio.readthedocs.io/)
+drop-in. The original `RPi.GPIO` can't drive the Pi 5's GPIO, which moved to the RP1 chip; it
+fails with "Cannot determine SOC peripheral base address". Install the drop-in from apt (it
+replaces `python3-rpi.gpio`), then create a virtual environment that can see it, since
+Raspberry Pi OS blocks `pip install` outside one:
 
 ```bash
-pip install RPi.GPIO paho-mqtt
+sudo apt install python3-rpi-lgpio
+python3 -m venv --system-site-packages ~/.venvs/p4n4-hw
+~/.venvs/p4n4-hw/bin/pip install "paho-mqtt>=2"
+~/.venvs/p4n4-hw/bin/python scripts/rpi5/p4n4_health_monitor.py
 ```
 
 ---
@@ -85,7 +96,11 @@ Probes all p4n4 services via TCP every 10 seconds and reflects aggregate health 
 |-------|-------------|
 | All services up | Double heartbeat pulse every 4 s |
 | Non-critical service(s) down | Slow blink — one blink per failing service (350 ms) |
-| Critical service down (`p4n4-api`) | Rapid 6-pulse alert burst (120 ms) |
+| Critical service down (`mosquitto` or `influxdb`) | Rapid 6-pulse alert burst (120 ms) |
+
+The broker and InfluxDB are critical because every other service depends on them. Set
+`P4N4_CRITICAL_SERVICES` (comma-separated labels from the health report, e.g.
+`mosquitto,influxdb,node-red`) to choose others.
 
 ```bash
 python3 scripts/rpi5/p4n4_health_monitor.py
@@ -100,8 +115,18 @@ Listens for press events on GPIO 27 and dispatches actions based on press type.
 | Press type | Action | LED feedback |
 |------------|--------|--------------|
 | Single press | Print live health report | 1 short pulse |
-| Double press | `docker restart` all non-critical services | 3-pulse burst |
-| Long press (3 s) | Graceful system shutdown | Fade-out |
+| Double press | `docker restart` each p4n4 container (`p4n4-mqtt`, `p4n4-influxdb`, …) | 3-pulse burst |
+| Long press (3 s) | Graceful system shutdown (`sudo -n shutdown -h now`) | Fade-out |
+
+A restart or shutdown that fails ends with a rapid 6-pulse burst, and the log says why.
+Containers that aren't on this host are skipped. The user running the script needs Docker
+access (the `docker` group) for restarts, and passwordless sudo for `shutdown`; a narrow
+sudoers rule is enough:
+
+```bash
+echo "$USER ALL=(root) NOPASSWD: /usr/sbin/shutdown" | sudo tee /etc/sudoers.d/p4n4-shutdown
+sudo chmod 0440 /etc/sudoers.d/p4n4-shutdown
+```
 
 ```bash
 python3 scripts/rpi5/p4n4_button_handler.py
@@ -111,18 +136,21 @@ python3 scripts/rpi5/p4n4_button_handler.py
 
 ### `p4n4_mqtt_indicator.py`
 
-Subscribes to key MQTT topics and pulses the LED for each arriving message. Alert topics trigger a faster burst.
+Subscribes to the topics the platform publishes on (`sensors/#`, `inference/#`, `devices/#`, `alerts/#`) and pulses the LED for each arriving message. Alerts (`alerts/<device-id>/critical`, `alerts/escalated`) trigger a faster burst.
 
 | Event | LED pattern |
 |-------|-------------|
 | Normal message | Single pulse (50 ms on/off) |
-| Alert / error message | 5-pulse burst (80 ms on / 50 ms off) |
+| Alert message | 5-pulse burst (80 ms on / 50 ms off) |
 | Idle (no traffic for 8 s) | Single heartbeat pulse |
 
-Default broker: `localhost:1883`. Override with `--host` / `--port`.
+Default broker: `localhost:1883`. Override with `--host` / `--port`. When the broker requires
+a login, set `MQTT_USER` and `MQTT_PASSWORD` in the environment (`--username` / `--password`
+also work, but other users can see options in the process list).
 
 ```bash
-python3 scripts/rpi5/p4n4_mqtt_indicator.py [--host HOST] [--port PORT]
+MQTT_USER=indicator MQTT_PASSWORD=... \
+  ~/.venvs/p4n4-hw/bin/python scripts/rpi5/p4n4_mqtt_indicator.py [--host HOST] [--port PORT]
 ```
 
 ---

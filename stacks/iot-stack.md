@@ -5,14 +5,30 @@ The IoT stack (`p4n4-iot`) is the foundation of every p4n4 deployment. It owns t
 
 ## Services
 
-| Service | Container | Image | Port | Role |
-|---------|-----------|-------|------|------|
-| Mosquitto | `p4n4-mqtt` | `eclipse-mosquitto:2` | 1883 (TCP) / 9001 (WebSocket) | MQTT broker |
-| InfluxDB | `p4n4-influxdb` | `influxdb:2` | 8086 | Time-series database |
-| Node-RED | `p4n4-node-red` | `nodered/node-red:latest` | 1880 | Flow-based data routing |
-| Grafana | `p4n4-grafana` | `grafana/grafana-oss:latest` | 3000 | Dashboards |
+| Service | Container | Image | Port | Role | Profile (default) |
+|---------|-----------|-------|------|------|-------------------|
+| Mosquitto | `p4n4-mqtt` | `eclipse-mosquitto:2.0` | 1883 (TCP) / 9001 (WebSocket) | MQTT broker | `mqtt` (on) |
+| InfluxDB | `p4n4-influxdb` | `influxdb:2.9` | 8086 | Time-series database | `influxdb` (on) |
+| Node-RED | `p4n4-node-red` | `nodered/node-red:5.0` | 1880 | Flow-based data routing | `node-red` (on) |
+| Grafana | `p4n4-grafana` | `grafana/grafana:13.0` | 3000 | Dashboards | `grafana` (on) |
+| Telegraf | `p4n4-telegraf` | `telegraf:1.40` | — | Host and broker metrics into `system_health` | `telegraf` (off) |
+
+Images are pinned to a minor version: `docker compose pull` brings in patch releases, but
+new features don't arrive unannounced. Grafana uses `grafana/grafana`, the OSS image
+(`grafana/grafana-oss` stopped at 13.0.2).
 
 Node-RED and Grafana wait for their dependencies' healthchecks before starting.
+
+## Choosing services
+
+Every service sits in a [Compose profile](https://docs.docker.com/compose/how-tos/profiles/)
+of its own name, and `COMPOSE_PROFILES` in `.env` lists the ones that start. The default is
+the MING stack (`mqtt,influxdb,node-red,grafana`); add `telegraf` for host metrics (CPU,
+memory, disk, network) and Mosquitto broker stats. Run `docker compose up -d --remove-orphans`
+after changing it. Node-RED needs `mqtt` and `influxdb`, and Grafana needs `influxdb`.
+Telegraf has no hard dependencies: it retries the broker and buffers writes until InfluxDB is
+up. Without a `COMPOSE_PROFILES` line, plain `docker compose up` starts nothing; the `make`
+targets fall back to the MING stack.
 
 ## Network
 
@@ -60,6 +76,12 @@ rules are in [§8.6 of the specs](../decisions/specs.md#86-mqtt-topic-convention
 `raw_telemetry` is created by InfluxDB's setup; `scripts/init-buckets.sh` creates the rest.
 Grafana gets a datasource per bucket.
 
+## Logs
+
+Mosquitto logs to stdout only, so `docker logs p4n4-mqtt` shows its log and Docker's log
+driver rotates it. (It used to also write `/mosquitto/log/mosquitto.log`, which it never
+rotated; the `mosquitto-log` volume is gone.)
+
 ## Node-RED
 
 The editor and Admin API require a login, checked against `NODE_RED_USER` and
@@ -77,19 +99,25 @@ to keep your changes.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TZ` | `UTC` | Container timezone |
+| `COMPOSE_PROFILES` | `mqtt,influxdb,node-red,grafana` | Services that start (see above) |
 | `INFLUXDB_USERNAME` / `INFLUXDB_PASSWORD` | `admin` / `adminpassword` | InfluxDB admin login |
 | `INFLUXDB_ORG` | `ming` | InfluxDB organisation (shared with other stacks) |
 | `INFLUXDB_TOKEN` | `p4n4-stack-token` | InfluxDB API token (shared with other stacks) |
-| `INFLUXDB_BUCKET` | `raw_telemetry` | Primary bucket |
+| `INFLUXDB_BUCKET` / `INFLUXDB_RAW_RETENTION` | `raw_telemetry` / `30d` | Primary bucket and its retention (first run only) |
 | `INFLUXDB_BUCKET_PROCESSED` | `processed_metrics` | Downsampled data |
 | `INFLUXDB_BUCKET_AI_EVENTS` | `ai_events` | AI events |
-| `INFLUXDB_BUCKET_HEALTH` | `system_health` | Stack health |
+| `INFLUXDB_BUCKET_HEALTH` | `system_health` | Stack health (Telegraf) |
 | `INFLUXDB_SANDBOX_BUCKET` / `INFLUXDB_SANDBOX_RETENTION` | `sandbox` / `30d` | Sandbox bucket |
 | `GRAFANA_USER` / `GRAFANA_PASSWORD` | `admin` / `adminpassword` | Grafana admin login |
-| `NODE_RED_USER` / `NODE_RED_PASSWORD` | `admin` / *(empty)* | Node-RED editor login |
+| `GRAFANA_ALLOW_EMBEDDING` | `false` | Lets p4n4-dashboard show Grafana in a frame; `p4n4 init` sets it with the dashboard layer |
+| `GRAFANA_SUB_PATH` | `/` | `/grafana/` when p4n4-dashboard proxies Grafana on its own origin |
+| `NODE_RED_USER` / `NODE_RED_PASSWORD` | `admin` / *(empty in Compose, `adminpassword` in `.env.example`)* | Node-RED editor login |
+| `TELEGRAF_HOSTNAME` / `TELEGRAF_INTERVAL` | `p4n4` / `10s` | Telegraf's `host` tag and collection interval |
 
-The defaults are placeholders. `p4n4 init` generates real values and
-`p4n4 secret rotate` replaces them.
+The defaults are placeholders. `p4n4 init` generates real values. `p4n4 secret rotate`
+replaces `NODE_RED_PASSWORD` only: InfluxDB and Grafana keep the password and token they
+first start with, so change those in the service (see the
+[Security guide](../guides/security.md#secret-rotation)).
 
 ## External MQTT broker
 

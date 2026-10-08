@@ -12,7 +12,11 @@ either of them to start.
 
 | Service | Container | Image | Port | Role |
 |---------|-----------|-------|------|------|
-| ei-runner | `p4n4-ei-runner` | built from `runner/` (`python:3.11-slim`) | 8080 | Inference runner and HTTP API |
+| ei-runner | `p4n4-ei-runner` | built from `runner/` (`python:3.11-slim`) | 8080 on `127.0.0.1` | Inference runner and HTTP API |
+
+The HTTP API has no authentication, so it's published on `127.0.0.1` only. p4n4-api
+reaches it on `p4n4-net` or on localhost. Set `EI_RUNNER_BIND` to publish it on another
+address, on a trusted network only.
 
 ## Data flow
 
@@ -33,7 +37,9 @@ Input payload:
 {"values": [1.23, 4.56, 7.89, 0.12, 3.45, 6.78]}
 ```
 
-`values` must match the model's input size. Result payload:
+`values` must be a non-empty array of at most `MAX_FEATURES` (default 65536) finite numbers
+within float32 range, and must match the model's input size. Any other message on the input
+topic is logged and dropped, and so is a sample the loaded model fails on. Result payload:
 
 ```json
 {
@@ -57,9 +63,14 @@ score, so `anomaly_score` is always `0.0` in `onnx` mode.
 | Value | Behavior |
 |-------|----------|
 | `auto` (default) | The `.eim` if present, else the `.onnx`, else mock mode |
-| `eim` | Edge Impulse only; mock mode if no `.eim` is found |
-| `onnx` | ONNX Runtime only; mock mode if no `.onnx` is found |
+| `eim` | Edge Impulse only; the runner stops if no `.eim` is found |
+| `onnx` | ONNX Runtime only; the runner stops if no `.onnx` is found |
 | `mock` | Simulated results, no model loaded |
+
+A model file that is present but fails to load also stops the runner, and so does an unknown
+`MODEL_BACKEND`. The reason is in `docker logs p4n4-ei-runner`, and `restart: unless-stopped`
+keeps retrying. The runner never publishes simulated results for a model it was meant to run;
+mock mode is only `MODEL_BACKEND=mock`, or `auto` with no model file.
 
 For ONNX, the runner feeds `values` to the model's first input as a `float32` tensor of
 shape `(1, N)`. Score arrays are softmaxed when they aren't already probabilities and
@@ -101,8 +112,9 @@ one that matches the device from Edge Impulse Studio under **Deployment → Linu
 
 `POST /api/v1/infer` doesn't publish to MQTT, write to InfluxDB or count toward `/health`,
 so it's safe for testing a model. `device` is optional and defaults to `api`. Errors return
-`{"error": "..."}` with `400` (bad body), `411` (no `Content-Length`) or `413` (body over
-1 MiB). The full contract is in [F-0.2.4 of the specs](../decisions/specs.md).
+`{"error": "..."}` with `400` (bad body, or a sample breaking the limits above), `411` (no
+`Content-Length`), `413` (body over 1 MiB) or `422` (the loaded model fails on the sample,
+for example the wrong number of values). The full contract is in [F-0.2.4 of the specs](../decisions/specs.md).
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/infer \
@@ -115,6 +127,8 @@ curl -X POST http://localhost:8080/api/v1/infer \
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MODEL_BACKEND` | `auto` | `auto` \| `eim` \| `onnx` \| `mock` |
+| `MAX_FEATURES` | `65536` | Most values one sample may carry; larger samples are rejected |
+| `EI_RUNNER_BIND` | `127.0.0.1` | Address the HTTP API is published on |
 | `EI_MODEL_FILE` | `model.eim` | `.eim` filename in `edge-impulse/models/` |
 | `EI_API_KEY` | — | Edge Impulse API key; only for cloud features, blank for offline use |
 | `ONNX_MODEL_FILE` | `model.onnx` | `.onnx` filename in `onnx/models/` |
@@ -144,9 +158,13 @@ The stack declares `p4n4-net` as external, so the network must exist. Without th
 stack, either create it:
 
 ```bash
-docker network create p4n4-net
+docker network create --driver bridge --subnet 172.20.0.0/16 \
+  --label com.docker.compose.network=p4n4-net p4n4-net
 make up
 ```
+
+The label lets the IoT stack use the network later; without it, Compose refuses to start the
+IoT stack on it ("incorrect label").
 
 or use the standalone-network block in the override file to point the runner at another
 broker and InfluxDB (`INFLUXDB_URL` is fixed to `http://p4n4-influxdb:8086` in

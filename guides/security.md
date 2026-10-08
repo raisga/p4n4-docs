@@ -2,15 +2,12 @@
 
 ## Default credentials
 
-All default passwords (`changeme`, `adminpassword`) are **placeholders only**.
-Change them before first run:
-
-```bash
-# Auto-generate strong secrets
-p4n4 secret rotate
-```
-
-Or set them manually in `.env`.
+All default passwords and tokens in the `.env.example` files (`adminpassword`,
+`p4n4-stack-token`, `lettapassword`, `change-me-32-char-encryption-key`) are public
+placeholders. `p4n4 init` generates real values. Without the CLI, replace every one of them
+in `.env` **before the first start**: InfluxDB, Grafana and n8n keep the values they first
+start with, and `p4n4 secret rotate` doesn't change those afterwards (see
+[Secret rotation](#secret-rotation)).
 
 ## Node-RED login
 
@@ -30,13 +27,21 @@ and JWT signing key, so keep it private and back it up. See the
 
 ## Network exposure
 
-By default, all services bind to `0.0.0.0`. In production:
+p4n4 0.2.x is meant for development and trusted local networks.
+
+The services without authentication are published on `127.0.0.1` only: Ollama (11434,
+`OLLAMA_BIND`), Letta (8283, `LETTA_BIND`), the inference runner (8080, `EI_RUNNER_BIND`)
+and p4n4-api (8000, `P4N4_API_HOST`). Keep them there unless the network is trusted, and use
+a reverse proxy with TLS for remote access rather than changing the bind address.
+
+Mosquitto (1883/9001), InfluxDB (8086), Node-RED (1880), Grafana (3000), n8n (5678) and the
+dashboard (8088) are published on every interface. In production:
 
 - Place a reverse proxy (Nginx, Caddy, Traefik) in front with TLS termination.
-- Restrict inbound ports with firewall rules.
-- Do not expose InfluxDB (8086), Mosquitto (1883/9001) or the inference runner (8080)
-  directly to the internet. The runner's HTTP API has no authentication; in production,
-  remove its host-port binding and reach it only from `p4n4-net`.
+- Restrict inbound ports with firewall rules. On Linux, traffic to published Docker ports
+  bypasses ufw rules ([Docker and ufw](https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-and-ufw)),
+  so filter in the `DOCKER-USER` chain or at the cloud provider.
+- Do not expose InfluxDB or Mosquitto directly to the internet.
 
 ## Dashboard
 
@@ -83,12 +88,36 @@ Node-RED or n8n MQTT nodes.
 
 ## Secret rotation
 
-Rotate all secrets periodically:
+`p4n4 secret rotate` replaces the secrets their services read at every start, then the
+next `p4n4 up` applies them:
+
+| Layer | Rotated by `p4n4 secret rotate` | Changed in the service (setup-only) |
+|-------|---------------------------------|-------------------------------------|
+| iot | `NODE_RED_PASSWORD` | `INFLUXDB_PASSWORD`, `INFLUXDB_TOKEN`, `GRAFANA_PASSWORD` |
+| ai | `LETTA_SERVER_PASSWORD` | `N8N_ENCRYPTION_KEY` (and the unused `N8N_BASIC_AUTH_PASSWORD`) |
 
 ```bash
 p4n4 secret rotate
 p4n4 down && p4n4 up
 ```
+
+The setup-only secrets are read once, when the service first creates its data. A new value
+in `.env` alone would lock every client out of InfluxDB and Grafana, and n8n refuses to
+start with an encryption key that doesn't match the one its credentials were stored with,
+so `rotate` leaves them alone and says so. Change them in the service, then write the new
+value to `.env` by hand so `p4n4 secret show` and the other layers stay in step:
+
+- **InfluxDB password:** `docker exec -it p4n4-influxdb influx user password -n admin`,
+  then set `INFLUXDB_PASSWORD` in the IoT `.env`.
+- **InfluxDB token:** create an all-access token
+  (`docker exec p4n4-influxdb influx auth create --org <org> --all-access`), set it as
+  `INFLUXDB_TOKEN` in **every** layer's `.env`, restart with `p4n4 down && p4n4 up`, then
+  delete the old token (`influx auth list`, `influx auth delete --id <id>`).
+- **Grafana password:** `docker exec p4n4-grafana grafana cli admin reset-admin-password <new>`,
+  then set `GRAFANA_PASSWORD` in the IoT `.env`.
+- **n8n encryption key:** keep it. Changing it means exporting the credentials decrypted
+  (`n8n export:credentials --decrypted`), starting n8n with an empty data volume and the
+  new key, and importing them again.
 
 ## `.env` file
 
@@ -96,10 +125,13 @@ p4n4 down && p4n4 up
 - Only `.env.example` (with placeholder values) is committed.
 - Use `p4n4 secret show` to audit current secrets (values are masked).
 - Multi-layer projects have one `.env` per stack (`iot/.env`, `ai/.env`, `edge/.env`).
-  `p4n4 secret rotate` updates all of them and writes the same new value to keys
-  shared across stacks (e.g. `INFLUXDB_TOKEN`), so never rotate one file by hand —
-  the stacks would drift out of sync.
+  `p4n4 init` writes the same value to keys shared across stacks (e.g. `INFLUXDB_TOKEN`),
+  and `p4n4 secret rotate` updates every file. When you change a shared key by hand, change
+  it in every layer's `.env`, or the stacks drift out of sync.
 
 ## Reporting vulnerabilities
 
-See [SECURITY.md](https://github.com/raisga/p4n4/blob/main/SECURITY.md) in the umbrella repo.
+**Do not open a public issue for security vulnerabilities.** Report them through a
+[private security advisory](https://github.com/raisga/p4n4/security/advisories/new) on the
+umbrella repo; this covers every repository in the `raisga` organisation. Include a
+description, steps to reproduce, the potential impact and a suggested fix if you have one.

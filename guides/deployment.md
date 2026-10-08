@@ -121,8 +121,12 @@ On a workstation, every port binding on `0.0.0.0` is harmless. On a VM with a pu
 Set real values in `.env` **before the first start on the server**:
 
 ```bash
-p4n4 secret rotate        # or: p4n4 secret generate, and paste the values
+p4n4 secret generate      # prints a value for every generated secret; paste them into .env
 ```
+
+`p4n4 secret rotate` isn't enough here: it only replaces `NODE_RED_PASSWORD` and
+`LETTA_SERVER_PASSWORD`. It leaves the InfluxDB, Grafana and n8n secrets alone, because
+those services keep the value they first start with.
 
 InfluxDB reads `DOCKER_INFLUXDB_INIT_*` (username, password, org, bucket, token) only on its first start, when its volume is empty. If you change `INFLUXDB_TOKEN` in `.env` after that, Telegraf and Grafana use the new token while InfluxDB still expects the old one. Never commit `.env`. Copy it to the server separately (see [4.4](#44-ship-the-project)).
 
@@ -471,7 +475,7 @@ services:
 `mqtt-influx-grafana-ollama` (iot + ai) and `mqtt-influx-grafana-ollama-go2rtc` (iot + ai + edge) keep one Compose project per layer (`iot/`, `ai/`, `edge/`). Each layer has its own `.env` ([ADR-002](../decisions/adr/ADR-002.md)). These steps change:
 
 - **Emulator.** `p4n4-emu up --profile <p>` at the project root starts every layer in dependency order, with the combined limits scaled down to fit one device. Use `--stack ai --native` to keep Ollama out of QEMU.
-- **Secrets.** `INFLUXDB_TOKEN`, `INFLUXDB_ORG` and `INFLUXDB_BUCKET` must be identical in every layer's `.env`. `p4n4 secret rotate` keeps them in sync. Don't edit one file by hand.
+- **Secrets.** `INFLUXDB_TOKEN`, `INFLUXDB_ORG` and `INFLUXDB_BUCKET` must be identical in every layer's `.env`. `p4n4 init` writes them identically; when you change one by hand, change it in every file.
 - **Overrides.** Write one `docker-compose.override.yml` **per layer directory**. Put Caddy in `iot/`. Bind the ai layer's agent (`11434`) to `127.0.0.1` in `ai/docker-compose.override.yml`, since it has no authentication.
 - **Start order.** iot first, because it creates `p4n4-net`, and stop in reverse: `p4n4 up` / `p4n4 down`, or `(cd iot && docker compose up -d) && (cd ai && docker compose up -d)`.
 - **Sizing.** On first start, Ollama pulls `OLLAMA_MODEL` (`gemma4:e2b`, about 4.6 GB). Leave disk room for it, and expect CPU-only inference on CAX/E2 machines to answer in seconds rather than milliseconds.

@@ -72,6 +72,14 @@ Required to run the ARM profiles (`rpi4`/`rpi5`) on an x86 host. `up` runs their
 p4n4-emu setup --arch arm64
 ```
 
+It runs `tonistiigi/binfmt --install arm64` once per host, with the image pinned to
+`qemu-v10.2.3` by digest because it runs privileged.
+
+`up` creates `p4n4-net` when it's missing, with p4n4-iot's subnet and the label Compose gives
+its own networks (Compose 2.19.1 to 5.3.1 refuse an unlabelled network of that name with
+"incorrect label"). An existing unlabelled network is recreated only when no container uses
+it; otherwise `up` warns and leaves it, so running stacks aren't cut off.
+
 ### Start a stack
 
 ```bash

@@ -18,7 +18,7 @@ p4n4 --version
 ```bash
 p4n4 init my-project                 # IoT stack only (default)
 p4n4 init my-project --layer iot,ai  # multiple stacks
-p4n4 init my-project --layer all     # iot + ai + edge
+p4n4 init my-project --layer all     # iot + ai + edge + dashboard
 ```
 
 The interactive wizard prompts for configuration (InfluxDB organisation, timezone,
@@ -26,7 +26,8 @@ service passwords, including the Node-RED editor login — leave blank to auto-g
 It then:
 
 - Fetches stack files from the canonical stack repos (`p4n4-iot`, `p4n4-ai`, `p4n4-edge`),
-  or from local checkouts passed with `--source-iot` / `--source-ai` / `--source-edge`.
+  or from local checkouts passed with `--source-iot` / `--source-ai` / `--source-edge` /
+  `--source-dashboard`.
 - Generates cryptographically secure secrets and writes them to `.env`.
 - Creates a `.p4n4.json` project manifest.
 
@@ -69,7 +70,8 @@ my-project/
 ```
 
 Shared values such as `INFLUXDB_TOKEN` are written identically to every layer's
-`.env`, and `p4n4 secret rotate` keeps them in sync.
+`.env`. InfluxDB, Grafana and n8n keep the secrets they first start with, so change those
+in the service rather than in `.env` alone (see the [Security guide](guides/security.md#secret-rotation)).
 
 ## Start the stacks
 
@@ -85,7 +87,12 @@ With no argument, stacks start in dependency order:
 2. `ai` — attaches to `p4n4-net`.
 3. `edge` — attaches to `p4n4-net`.
 
-`p4n4 down` stops them in reverse order.
+`p4n4 up` creates `p4n4-net` itself when a project has no IoT layer or the IoT stack is down.
+`p4n4 down` stops the stacks in reverse order.
+
+Stacks use fixed container names (`p4n4-influxdb`, …) and host ports, so only one project
+runs on a host at a time. If another project is still up, `p4n4 up` names it and prints the
+command that stops it; `p4n4 down --all` stops every p4n4 project on the host.
 
 ## Service URLs (default ports)
 
@@ -94,10 +101,10 @@ With no argument, stacks start in dependency order:
 | Node-RED | http://localhost:1880 (log in with `NODE_RED_USER` / `NODE_RED_PASSWORD` from the IoT `.env`) |
 | Grafana | http://localhost:3000 |
 | InfluxDB | http://localhost:8086 |
-| n8n (optional) | http://localhost:5678 (add `n8n` to `COMPOSE_PROFILES` in the AI `.env`) |
-| Letta (optional) | http://localhost:8283 (add `letta` to `COMPOSE_PROFILES` in the AI `.env`) |
-| Ollama | http://localhost:11434 (`OLLAMA_PORT` in the AI `.env`; change it if Ollama already runs on the host) |
-| Inference runner | http://localhost:8080/health |
+| n8n (optional) | http://localhost:5678 (add `n8n` to `COMPOSE_PROFILES` in the AI `.env`; create the owner account on the first visit) |
+| Letta (optional) | http://localhost:8283 (add `letta` to `COMPOSE_PROFILES` in the AI `.env`; localhost only) |
+| Ollama | http://localhost:11434 (`OLLAMA_PORT` in the AI `.env`; change it if Ollama already runs on the host; localhost only) |
+| Inference runner | http://localhost:8080/health (localhost only) |
 | Dashboard (web) | http://localhost:8088 (with the `dashboard` layer) |
 
 MQTT is on `localhost:1883` (TCP) and `:9001` (WebSocket). Credentials are in each

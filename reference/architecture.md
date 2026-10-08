@@ -108,8 +108,13 @@ p4n4/
 ├── README.md                   ← project overview, quick links to all sub-repos
 ├── CONTRIBUTING.md
 ├── CODE_OF_CONDUCT.md
-├── SECURITY.md
 ├── LICENSE
+├── .github/                    ← CODEOWNERS, issue and PR templates, stale bot
+├── scripts/                    ← run p4n4 from source (see the Development guide)
+│   ├── dev                     ← editable venv, `p4n4`, API and hot-reload dashboard
+│   ├── dev_api.py              ← p4n4-api with auto-reload, used by `scripts/dev`
+│   ├── doctor                  ← read-only checks: tools, submodules, venv, ports
+│   └── repos                   ← every submodule's branch, changes and pointer
 ├── stacks/
 │   ├── iot/                    ← submodule: p4n4-iot
 │   ├── ai/                     ← submodule: p4n4-ai
@@ -122,8 +127,18 @@ p4n4/
 │   ├── hw/                     ← submodule: p4n4-hw
 │   ├── templates/              ← submodule: p4n4-templates
 │   └── emu/                    ← submodule: p4n4-emu
-└── docs/                       ← submodule: p4n4-docs (ARCHITECTURE.md lives here)
+├── docs/                       ← submodule: p4n4-docs (ARCHITECTURE.md lives here)
+├── projects/
+│   └── sandbox/                ← submodule: p4n4-sandbox (private, update = none)
+└── web/
+    ├── blog/                   ← submodule: p4n4-blog (update = none)
+    └── p4n4.com/               ← submodule: p4n4.com (private, update = none)
 ```
+
+Release notes live in each repository's `release-notes/` folder (see
+[Releasing](../project/releasing.md)), and security reports go through a
+[private security advisory](https://github.com/raisga/p4n4/security/advisories/new) (see the
+[Security guide](../guides/security.md#reporting-vulnerabilities)).
 
 ---
 
@@ -543,7 +558,7 @@ and `down` deletes it. The overlay records its profile in an `x-p4n4-emu` block,
 1. p4n4-iot    → creates p4n4-net + starts Mosquitto & InfluxDB first
 2. p4n4-ai     → attaches to p4n4-net; needs Mosquitto (optional) + InfluxDB healthy
 3. p4n4-edge   → attaches to p4n4-net; fully independent of ai stack
-4. dashboard   → attaches to p4n4-net; proxies p4n4-api, Ollama and Letta, so it starts last
+4. dashboard   → attaches to p4n4-net; proxies p4n4-api (and optionally Grafana), so it starts last
 ```
 
 Running `p4n4 up` with no stack argument enforces this order: it starts each stack's
@@ -590,9 +605,10 @@ my-project/                     ← multi-layer layout (`--layer iot,ai`)
 ```
 
 Cross-stack values (`INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET`) are written
-identically to every stack's `.env` at init time, and `p4n4 secret rotate` generates one
-new value per key and writes it to every `.env` containing that key, so credentials
-never drift between stacks.
+identically to every stack's `.env` at init time. `p4n4 secret rotate` writes one new value
+per key to every `.env` containing it, but only for the secrets services read at every start
+(`NODE_RED_PASSWORD`, `LETTA_SERVER_PASSWORD`); the shared InfluxDB token is setup-only and
+changed in InfluxDB itself (see the [Security guide](../guides/security.md#secret-rotation)).
 
 **Standalone (without CLI):**
 Each stack repo ships its own `.env.example`. Copy to `.env` and fill in values manually.

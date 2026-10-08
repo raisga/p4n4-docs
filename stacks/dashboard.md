@@ -19,12 +19,14 @@ dashboard`). It only reads from them, so any subset of stacks works.
 | Path | Goes to | Notes |
 |------|---------|-------|
 | `/` | The web app | Unknown paths fall back to `index.html` |
-| `/api/`, `/health` | p4n4-api (`P4N4_API_UPSTREAM`) | Service status, project info, edge metrics |
-| `/ollama/` | Ollama (`OLLAMA_UPSTREAM`) | Agent chat; buffering off for streaming |
-| `/letta/` | Letta (`LETTA_UPSTREAM`) | Agent chat |
+| `/api/`, `/health` | p4n4-api (`P4N4_API_UPSTREAM`) | Service status, project info, edge metrics, and the assistant (Ollama and Letta through `/api/v1/agents`) |
 | `/grafana/` | Grafana (`GRAFANA_UPSTREAM`) | Optional; `404` until set. Grafana must serve from `/grafana/` (`GRAFANA_SUB_PATH`) |
 | `/config.json` | Rendered at start | The app's default addresses (`DASHBOARD_*` variables) |
 | `/healthz` | nginx | Health check |
+
+The dashboard never calls Ollama or Letta directly: the assistant goes through p4n4-api,
+which requires sign-in, keeps the Letta password and holds normies to the model or agent an
+operator chose. Point the API at them with `P4N4_API_OLLAMA_URL` / `P4N4_API_LETTA_URL`.
 
 By default Grafana and cameras aren't proxied: the browser loads them directly (`<iframe>`, `<img>`)
 from `DASHBOARD_HOST`, or from the host the page was served from. Grafana must allow
@@ -43,11 +45,12 @@ cd my-project && p4n4 up                       # prints the dashboard URL
 
 Or on its own, from the dashboard repository: `cp .env.example .env && docker compose up -d`.
 
-p4n4-api runs on the host in v0.1, and the container reaches it at
-`host.docker.internal`. Start the API where the container can reach it:
+When p4n4-api runs on the host, the container reaches it at `host.docker.internal`. Start the API where the container can reach it:
 `P4N4_API_HOST=172.17.0.1` (the Docker bridge) or `0.0.0.0`. Create dashboard accounts on
 the API (`p4n4-api users add <name> --role admin|operator|normie`); admins get the admin
-view, operators the power view and normies the normie view.
+view, operators the power view and normies the read-only normie view. When the API runs in
+its own container on `p4n4-net`, set `P4N4_API_UPSTREAM=http://p4n4-api:8000` instead (see the
+[REST API](../reference/api.md#run)).
 
 ## Environment variables
 
@@ -58,12 +61,11 @@ view, operators the power view and normies the normie view.
 | `DASHBOARD_BIND` | `0.0.0.0` | Interface to publish on; a LAN address keeps it off other networks |
 | `DASHBOARD_HOST` | *(empty)* | Host the browser uses for Grafana and direct links; empty means the page's host |
 | `P4N4_API_UPSTREAM` | `http://host.docker.internal:8000` | p4n4-api |
-| `OLLAMA_UPSTREAM` | `http://p4n4-ollama:11434` | Ollama |
-| `LETTA_UPSTREAM` | `http://p4n4-letta:8283` | Letta |
 | `GRAFANA_UPSTREAM` | *(empty)* | Grafana, for the optional `/grafana/` route |
 | `DASHBOARD_GRAFANA_BASE` | *(empty)* | `/grafana/` to make the app use that route |
 | `DASHBOARD_BASIC_AUTH` | *(empty)* | htpasswd entries (`make htpasswd NAME=admin`); set, the whole UI needs a login |
 | `DASHBOARD_TLS_SITE`, `DASHBOARD_TLS` | `localhost`, `internal` | HTTPS front end (`make up-tls`): the site address, and `internal` or an email for Let's Encrypt |
+| `DASHBOARD_TLS_PORT`, `DASHBOARD_HTTP_PORT` | `443`, `80` | Host ports of the HTTPS front end (HTTP redirects to HTTPS and answers ACME) |
 
 ## White-label images
 
@@ -91,8 +93,8 @@ Then set the project's `dashboard/docker-compose.yml` image to that tag.
   no capabilities and `no-new-privileges`. It enforces a Content Security Policy that
   stops other sites from framing it. Base images are pinned by digest, Dependabot keeps
   them current, and CI scans every image with Trivy.
-- **Fixed upstreams.** The proxy only forwards to the three upstreams above, never to
-  arbitrary URLs, so it can't be used as an open relay.
+- **Fixed upstreams.** The proxy only forwards to p4n4-api and the optional Grafana
+  upstream, never to arbitrary URLs, so it can't be used as an open relay.
 
 ## Resource limits (emulator)
 
