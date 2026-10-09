@@ -42,7 +42,7 @@ scripts/dev up /tmp/demo                                # stack + API + hot-relo
 | `new <template> [dir]` | Copies a template from `tools/templates/projects` and creates each layer's `.env` from its `.env.example` |
 | `api [project]` | p4n4-api for the project, reloading on changes in `api/` and `lib/` |
 | `dashboard [project] [--theme]` | The dashboard with hot reload on `:8088` (needs the API) |
-| `up [project] [--theme] [--no-stack]` | `p4n4 up` for every layer except `dashboard`, the API in the background (log in `<project>/.p4n4-api/dev-api.log`), then the dashboard in front. Ctrl-C or `q` stops the API and dashboard; the stack keeps running (`scripts/dev p4n4 down`) |
+| `up [project] [--no-theme] [--no-stack]` | `p4n4 up` for every layer except `dashboard`, the API in the background (log in `<project>/.p4n4-api/dev-api.log`), then the dashboard in front with the project's theme. Ctrl-C or `q` stops the API and dashboard; the stack keeps running (`scripts/dev p4n4 down`) |
 | `which` | Which projects own the `p4n4-*` containers on this host |
 | `status [project]` | The project's API, dashboard and stack containers, and other projects holding containers |
 | `shell` | A shell with `.venv` active, so `p4n4` and `p4n4-api` come from this checkout |
@@ -66,8 +66,9 @@ password `p4n4`. Never use those outside development.
 `flutter run`'s dev proxy (`dashboard/web_dev_config.yaml`) doesn't, so without it every API
 call from a hot-reload dashboard is a 401.
 
-`--theme` applies the project's dashboard theme (`dashboard.theme` in `.p4n4.json`). It
-rewrites tracked files in `dashboard/` (`assets/brand`, `web/`); undo it with
+`--theme` applies the project's dashboard theme (`dashboard.theme` in `.p4n4.json`), or the
+default p4n4 one when the project has none, so another project's brand doesn't linger. `up`
+does it unless you pass `--no-theme`; `dashboard` only with `--theme`. It rewrites tracked files in `dashboard/` (`assets/brand`, `web/`); undo it with
 `cd dashboard && dart tool/brand.dart apply p4n4 --web-only`.
 
 | Variable | Default | Description |
