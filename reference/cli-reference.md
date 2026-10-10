@@ -82,10 +82,16 @@ Start one or all enabled stacks in dependency order (`iot` → `ai` → `edge`).
 p4n4 up                    # all stacks
 p4n4 up iot                # IoT stack only
 p4n4 up --no-detach        # foreground mode
+p4n4 up --emu rpi5         # under p4n4-emu, sized like a Raspberry Pi 5
 ```
 
+`--emu <profile>` runs the stacks under [p4n4-emu](emulator.md) with a hardware profile
+(`rpi4`, `rpi5`, `nuc`, `mcu-class`) by running `p4n4-emu up`, so `p4n4-emu` must be on
+`PATH`. `p4n4 down` stops stacks started that way through `p4n4-emu down`.
+
 `up` creates the `p4n4-net` network when it's missing, so AI-only and edge-only projects,
-and `p4n4 up ai` while the IoT stack is down, start too. Before starting anything it checks
+and `p4n4 up ai` while the IoT stack is down, start too. A `p4n4-net` made without
+Compose's label is recreated with it while no container uses it. Before starting anything it checks
 that no other project holds the fixed `p4n4-*` container names (see `down --all` below).
 
 ---

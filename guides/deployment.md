@@ -108,7 +108,7 @@ p4n4-emu down                             # stop; keep volumes
 p4n4-emu down --volumes                   # stop and delete data
 ```
 
-**Emulator limitations.** It can't throttle the network (no `tc netem`). QEMU arm64 is 3–10× slower than native, so Ollama under an ARM profile is impractical; use `--native` for the ai layer. Limits are not enforced on cgroup v1 hosts. See the [emulator reference](../reference/emulator.md#known-limitations).
+**Emulator limitations.** It can't throttle the network (no `tc netem`). QEMU arm64 is 3–10× slower than native, so Ollama under an ARM profile is impractical; use `--native` for the ai layer. It caps CPU time, not core speed, and disk bandwidth, not IOPS. See [how faithful the emulation is](../reference/emulator.md#how-faithful-the-emulation-is).
 
 ---
 
