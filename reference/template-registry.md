@@ -24,11 +24,11 @@ p4n4 template list
 |------|--------|-------------|
 | `mqtt-influx-grafana` | iot | MQTT → Telegraf → InfluxDB + file archive → Grafana. See the [greenhouse use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-telemetry.md) |
 | `mqtt-influx-grafana-ollama` | iot + ai | The same pipeline plus a local LLM (Gemma 4 E2B on Ollama) that queries InfluxDB through tool calls. See the [greenhouse assistant use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-assistant.md) |
-| `mqtt-influx-grafana-ollama-go2rtc` | iot + ai + edge | Road traffic counting with ALPR: ingest service (plates kept for a retention period), traffic dashboard without plates, an assistant with fixed numbers and plate lookups, and go2rtc video. See the [road traffic use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/road-traffic.md) |
+| `mqtt-influx-grafana-ollama-go2rtc` | iot + ai + extras | Road traffic counting with ALPR: ingest service (plates kept for a retention period), traffic dashboard without plates, an assistant with fixed numbers and plate lookups, and go2rtc video. See the [road traffic use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/road-traffic.md) |
 | `mqtt-nodered-influx-grafana` | iot | Greenhouse climate control: the same pipeline plus Node-RED rules (fan and valve with hysteresis, manual override, valve watchdog) that publish actuator commands over MQTT, and a dashboard with the reason behind each decision. A simulated greenhouse obeys the commands |
 | `mqtt-influx-grafana-n8n` | iot + ai | Cold-chain compliance: n8n workflows alert on temperature excursions after a grace period, escalate when nobody acknowledges, record the corrective action through a signed link, and email and save a daily record. Mailpit catches the emails in the demo |
 | `mqtt-influx-grafana-ollama-letta` | iot + ai | Maintenance assistant with memory: condition monitoring for pumps and fans plus a Letta agent on a local Ollama model, with an equipment register in core memory, past incidents in archival memory, InfluxDB tools, and maintenance logged to memory and Grafana. Demo history included |
-| `factory-baseline` *(planned)* | iot + ai + edge | Full stack for discrete manufacturing |
+| `factory-baseline` *(planned)* | iot + ai | Full stack for discrete manufacturing: vibration anomaly detection on the ai layer's `ei-runner`, alert enrichment, incident escalation |
 | `iot-minimal` *(planned)* | iot | Minimal IoT-only starter |
 
 `p4n4 template` isn't implemented yet. Copy a template directory to start a project
@@ -66,22 +66,52 @@ neither or both of `url` and `port`).
 
 ## Contributing a template
 
-1. Create a Git repository containing your template files and a `p4n4-template.toml`.
-2. Read the [TEMPLATE_GUIDE.md](https://github.com/raisga/p4n4-templates/blob/main/TEMPLATE_GUIDE.md).
-3. Fork `raisga/p4n4-templates` and add your template to `index.json`.
-4. Open a pull request — CI validates the index automatically.
+Templates live in `projects/<template-name>/` of
+[p4n4-templates](https://github.com/raisga/p4n4-templates). Each one is a complete,
+runnable p4n4 project: `cp -r` it and `docker compose up -d` must work with no CLI.
 
-## `p4n4-template.toml` quick reference
+1. Fork `raisga/p4n4-templates`, read its
+   [authoring guide](https://github.com/raisga/p4n4-templates/blob/main/docs/authoring.md),
+   and copy `mqtt-influx-grafana` (the reference template) as a starting point.
+2. Describe it in `template.yaml` and `.p4n4.json`, and add a `README.md` with the use
+   case, the hardware it needs and its data format.
+3. Run the checks, then open a pull request:
 
-```toml
-[template]
-name = "my-template"
-version = "0.1.0"
-description = "One sentence description"
-author = "Your Name"
-tags = ["tag1", "tag2"]
+```bash
+uv run scripts/validate.py <template-name>   # static checks against schema/
+projects/<template-name>/tests/smoke.sh      # end to end (needs Docker)
+```
 
-[requires]
-cli = ">=0.1.0"
-stacks = ["iot"]
+Never commit a `.env`, only `.env.example`; pin image versions to at least the minor
+version; keep flows and dashboards self-contained.
+
+## `template.yaml` quick reference
+
+Validated against `schema/template.schema.json`:
+
+```yaml
+schema_version: 1
+name: my-template
+version: 0.1.0
+title: Short title
+description: >-
+  One or two sentences.
+layers: [iot]                # iot, ai, extras
+tags: [mqtt, influxdb]
+maintainers: [your-github-handle]
+
+services:
+  - name: mqtt
+    description: Eclipse Mosquitto MQTT broker
+    ports: [1883, 9001]
+  - name: simulator
+    description: Demo publisher
+    profile: demo            # demo data sits behind a Compose profile
+
+data:
+  topics:
+    - pattern: sensors/<device-id>/<measurement>
+      payload: '{"value": 23.4, "unit": "C"}'
+
+smoke_test: tests/smoke.sh
 ```

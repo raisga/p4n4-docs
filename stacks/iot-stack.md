@@ -7,7 +7,7 @@ The IoT stack (`p4n4-iot`) is the foundation of every p4n4 deployment. It owns t
 
 | Service | Container | Image | Port | Role | Profile (default) |
 |---------|-----------|-------|------|------|-------------------|
-| Mosquitto | `p4n4-mqtt` | `eclipse-mosquitto:2.0` | 1883 (TCP) / 9001 (WebSocket) | MQTT broker | `mqtt` (on) |
+| Mosquitto | `p4n4-mqtt` | `eclipse-mosquitto:2.0` | 1883 (TCP) / 9001 (WebSocket) / 8883 (TLS, optional) | MQTT broker | `mqtt` (on) |
 | InfluxDB | `p4n4-influxdb` | `influxdb:2.9` | 8086 | Time-series database | `influxdb` (on) |
 | Node-RED | `p4n4-node-red` | `nodered/node-red:5.0` | 1880 | Flow-based data routing | `node-red` (on) |
 | Grafana | `p4n4-grafana` | `grafana/grafana:13.0` | 3000 | Dashboards | `grafana` (on) |
@@ -147,6 +147,9 @@ stack logs its decisions and feedback (above) and adds three things.
 |----------|---------|-------------|
 | `TZ` | `UTC` | Container timezone |
 | `COMPOSE_PROFILES` | `mqtt,influxdb,node-red,grafana` | Services that start (see above) |
+| `MQTT_USER` / `MQTT_PASSWORD` | *(empty)* | Device login; with a password set, the device listeners require a login (see [Mosquitto authentication](#mosquitto-authentication)) |
+| `MQTT_PORT` / `MQTT_WS_PORT` | `1883` / `9001` | Host ports of the device listeners (TCP and WebSocket) |
+| `MQTT_TLS_CERT_FILE` / `MQTT_TLS_KEY_FILE` | *(empty)* | Server certificate and key in `config/mosquitto/certs/`; both set: a TLS listener on `MQTT_TLS_PORT` (default `8883`) |
 | `INFLUXDB_USERNAME` / `INFLUXDB_PASSWORD` | `admin` / `adminpassword` | InfluxDB admin login |
 | `INFLUXDB_ORG` | `ming` | InfluxDB organisation (shared with other stacks) |
 | `INFLUXDB_TOKEN` | `p4n4-stack-token` | InfluxDB API token (shared with other stacks) |
@@ -197,22 +200,19 @@ is connected; it reads the state Mosquitto publishes on
 
 ## Mosquitto authentication
 
-`config/mosquitto/mosquitto.conf` ships with `allow_anonymous true` for development. For
-production, turn it off and use a password file and ACL (templates are in
-`config/mosquitto/passwd.example` and `acl.example`):
+The stack's own services (Node-RED, Telegraf, the AI stack's runner) connect to `mqtt:1883`
+on `p4n4-net`, an internal listener that isn't published and never asks for a login.
+Devices connect to separate listeners, published on `MQTT_PORT` (TCP, default 1883),
+`MQTT_WS_PORT` (WebSocket, default 9001) and, with a certificate, `MQTT_TLS_PORT` (TLS,
+default 8883).
 
-```conf
-allow_anonymous false
-password_file /mosquitto/config/passwd
-acl_file /mosquitto/config/acl
-```
-
-```bash
-mosquitto_passwd -c config/mosquitto/passwd <username>
-```
-
-Clients such as the edge runner then need matching `MQTT_USER` / `MQTT_PASSWORD` in their
-`.env`. See the [Security guide](../guides/security.md#mosquitto-authentication).
+`config/mosquitto/entrypoint.sh` writes the listeners, logins and bridge into
+`/mosquitto/conf.d` from `.env` at every start; `mosquitto.conf` keeps only persistence and
+logging. Set `MQTT_USER` and `MQTT_PASSWORD` and the device listeners require a login; leave
+`MQTT_PASSWORD` empty and they accept anonymous clients. Add accounts in
+`config/mosquitto/passwd` (`make mqtt-user NAME=<name>`) and topic rules in
+`config/mosquitto/acl` (from `acl.example`). `docker logs p4n4-mqtt` shows what it set up.
+See the [Security guide](../guides/security.md#mosquitto-authentication) for the details.
 
 ## Make commands
 

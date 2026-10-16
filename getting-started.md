@@ -143,3 +143,7 @@ feature vector to `sensors/<device-id>/raw` to get a result on `inference/<devic
 - [Extras](stacks/extras.md) (optional services)
 - [CLI reference](reference/cli-reference.md)
 - [REST API](reference/api.md) and [dashboard](reference/dashboard.md)
+- [Configuration](reference/configuration.md) (every `.env` key) and [MQTT topics](reference/mqtt-topics.md)
+- [Security](guides/security.md), before devices or the internet can reach the host
+- [Troubleshooting](guides/troubleshooting.md)
+- [Raspberry Pi 5 node](guides/raspberry-pi.md), to run the project next to the sensors

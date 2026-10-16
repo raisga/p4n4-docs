@@ -6,7 +6,7 @@
 done its desk research; the in-car work hasn't started.
 
 > **About this version.** Version 0.1 (2026-09-23) was never committed. Other documents cite
-> it: [Known Issues](../project/known-issues.md), the code review and [System 1](system1.md).
+> it: [Known Issues](https://github.com/raisga/p4n4-docs/blob/265aaa8/project/known-issues.md) (all fixed, since removed), the code review and [System 1](system1.md).
 > This version is a rewrite that keeps those references valid:
 > - §4 is the tool catalog (`edge_deploy_model`, `nodered_flows_apply`, `system1_decide`);
 > - §8 is the gap table, and G3, G4, G5, G6, G8 and G9 keep their meanings;
@@ -224,7 +224,7 @@ The data includes where and when the car was driven, so it's personal data. The 
 
 When the Pi joins the owner's home Wi-Fi, it forwards `sensors/cube/#`, `alerts/cube/#` and
 `trips` to the home p4n4 over MQTT with TLS. Today's IoT stack can only **pull** topics from
-an external broker into the local one [source: `config/mosquitto/bridge.sh`, CLI
+an external broker into the local one [source: `config/mosquitto/entrypoint.sh`, CLI
 `--mqtt-remote`]. Pushing local topics out is gap G11. Queued messages are sent once and
 then expire locally under the retention rules.
 
@@ -590,7 +590,7 @@ The harness also removes known secret patterns from them before returning anythi
 ## 8. Gaps
 
 What p4n4 is missing for the harness and for p4n4 Car. G3–G9 keep their 0.1 meanings, as
-cited by [Known Issues](../project/known-issues.md) and the code review. Status is as of
+cited by [Known Issues](https://github.com/raisga/p4n4-docs/blob/265aaa8/project/known-issues.md) and the code review. Status is as of
 2026-10-03 (v0.2.0 release prep).
 
 | # | Gap | Repos | Needed by | Status |

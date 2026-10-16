@@ -153,10 +153,12 @@ Node-RED is the central routing hub. It subscribes to MQTT topics, applies trans
 ```
 config/
 ├── mosquitto/
-│   ├── mosquitto.conf    ← broker config (auth, TLS, persistence)
-│   ├── passwd.example    ← copy to passwd for password auth; passwd is never committed
+│   ├── mosquitto.conf    ← persistence and logging; includes the generated conf.d
+│   ├── entrypoint.sh     ← writes listeners, device logins, TLS and the external-broker
+│   │                       bridge (MQTT_*, MQTT_REMOTE_*) from .env at every start
+│   ├── passwd.example    ← extra device accounts go in passwd, which is never committed
 │   ├── acl.example       ← topic-level access rules
-│   └── bridge.sh         ← optional bridge from an external broker (MQTT_REMOTE_*)
+│   └── certs/            ← TLS certificates and keys
 ├── node-red/
 │   ├── flows/
 │   │   └── flows.json    ← version-controlled base flows
@@ -237,7 +239,7 @@ The runner wraps the Edge Impulse Linux Python SDK and ONNX Runtime in one image
    POST :8080/api/v1/infer tests one sample without publishing
 ```
 
-Model files are never committed to the repository (`.gitignore`). They are provided at deploy time by copying them into the read-only mounted model directories. `p4n4 ei deploy` will automate step 3–4; it's a stub in v0.1.
+Model files are never committed to the repository (`.gitignore`). They are provided at deploy time by copying them into the read-only mounted model directories. `p4n4 ei deploy` will automate step 3–4; it isn't implemented yet.
 
 #### Sensor / camera access
 
@@ -349,8 +351,8 @@ Content structure:
 - `README.md` — platform overview and index
 - `getting-started.md` — installation and first project
 - `stacks/` — `iot-stack.md`, `ai-stack.md`, `edge-inference.md` (the AI stack's runner; `edge-stack.md` points there), `extras.md`, `dashboard.md`
-- `reference/` — architecture, CLI, REST API, dashboard, template registry, hardware, emulator
-- `guides/` — deployment, development, security, migrating from the edge stack
+- `reference/` — architecture, CLI, REST API, dashboard, configuration, MQTT topics, template registry, hardware, emulator
+- `guides/` — deployment, development, security, troubleshooting, migrating from the edge stack, and hosts: Raspberry Pi 5, Jetson, AWS, Google Cloud, Azure, DigitalOcean
 - `decisions/` — this document, the specs, design drafts, and `adr/` (Architecture Decision Records)
 - `project/` — releasing, known issues
 
@@ -533,7 +535,7 @@ When using stacks without the CLI, these must be kept consistent manually across
 |--------|-----------|
 | Default credentials exploited | CLI generates unique secrets per project; no global defaults committed |
 | Secrets in version control | `.env` is in `.gitignore`; only `.env.example` (placeholders) is committed |
-| Unauthenticated MQTT | Default `allow_anonymous true` for dev; disable for production + ACL |
+| Unauthenticated MQTT | Internal services use a `p4n4-net`-only listener; device listeners require a login once `MQTT_PASSWORD` is set, plus an optional ACL and TLS |
 | Exposed services on public IP | Bind services to localhost or use firewall; reverse proxy with TLS for WAN |
 | Model binary tampering | `.eim` files are externally sourced; integrity verification is out of scope for Phase 1 |
 | Compromised container | Docker network isolation limits blast radius; no host bind-mounts for sensitive paths |
@@ -542,7 +544,7 @@ When using stacks without the CLI, these must be kept consistent manually across
 
 | Setting | Development (default) | Production (hardened) |
 |---------|-----------------------|-----------------------|
-| MQTT anonymous | `allow_anonymous true` | `allow_anonymous false` + passwd + ACL |
+| MQTT device login | None (`MQTT_PASSWORD` empty) | `MQTT_USER` / `MQTT_PASSWORD`, an account per device, ACL, TLS listener |
 | Service binding | Ollama, Letta, the inference runner and p4n4-api on `127.0.0.1`; the rest on `0.0.0.0` | `127.0.0.1` or reverse proxy |
 | TLS | Off | Reverse proxy terminates TLS |
 | Secrets | Placeholder or CLI-generated | CLI-generated; rotated periodically |

@@ -1088,9 +1088,11 @@ alert at 500 characters; the service suite covers it.
 - A native arm64 run: the CI workflow builds and tests on `ubuntu-24.04-arm` (open
   question 2).
 - The `incident-triage` gates on at least 50 examples from a real site.
-- The first image release: a `system1-v0.1.0` tag publishes
-  `ghcr.io/raisga/p4n4-system1:0.1.0`, the default `SYSTEM1_IMAGE`. Until then, build it
-  with `make system1-build` and set `SYSTEM1_IMAGE=p4n4-system1:dev`.
+
+Done since: the first image release. The `system1-v0.1.0` tag (release set v0.3.0, see
+[Releasing](../project/releasing.md)) publishes `ghcr.io/raisga/p4n4-system1:0.1.0`, the
+default `SYSTEM1_IMAGE`. To test unreleased changes, build it with `make system1-build` and
+set `SYSTEM1_IMAGE=p4n4-system1:dev`.
 
 ## 15. S2 Implementation
 
@@ -1539,6 +1541,13 @@ pinned like the base (§9). A person pushes it; nothing here does.
    `incident-triage` v4, `operator-intake` v5. `status` then names the repository.
 5. To make it p4n4's default, change both defaults in `.env.example` and
    `docker-compose.yml` in the same change.
+6. Run `make system1-test` (the regression suite) against the rebuilt image.
+
+The bundle from this run is in `stacks/ai/system1/train/out/checkpoint/` (647 MB,
+gitignored), its hashes matching the manifest; the judge runs are `out/base.json` and
+`out/tuned.json`. On the workstation that trained it, the Docker volume `s4-out` still
+holds `/out/ft1` (superseded) and `/out/ft2`: remove it with `docker volume rm s4-out` once
+the bundle is pushed.
 
 ### 17.6 Departures from §10.5
 
@@ -1557,6 +1566,24 @@ pinned like the base (§9). A person pushes it; nothing here does.
 - **The S3 exit, for sets:** the four drafts need held-out evidence (§17.4).
 - **`english` isn't fine-tuned.** Nothing needs it while `multilingual` serves every set.
 - **The S1 and S2 exit criteria** of §14.7 and §15.11.
+
+### 17.8 Working on the checkpoint
+
+- **Training:** `make system1-train` from `stacks/ai`, about 2 hours on 8 CPU cores within
+  an 11 GiB limit (peak about 7 GiB). It writes `system1/train/out/corpus.jsonl` and
+  `out/checkpoint/`.
+- **Judging:** `PYTHONPATH=<repo>/lib python3 system1/train/compare.py OUT.json --url
+  http://127.0.0.1:<port> --key-file KEY SETS_DIR`, against a service that has every set,
+  drafts included, mounted at `/config/questions`. `compare.py --show A.json B.json`
+  compares two runs.
+- **Model card:** `python3 system1/train/card.py out/checkpoint out/base.json out/tuned.json`.
+- **Serving a local checkpoint offline:** fake the Hugging Face cache under
+  `models--<org>--<name>/` with `snapshots/<rev>/multilingual/`, `refs/<rev>` and
+  `trees/<rev>.json` (format 1: `{path: {size, blob_id}}`). With any of the three missing,
+  `huggingface_hub` tries the network and the wrapper refuses to start. Give the wrapper a
+  pins file for that repository and revision through `SYSTEM1_PINS`.
+- **Tests:** from `stacks/ai`, `<repo>/cli/.venv/bin/python -m pytest -q system1/train`
+  (the host Python has no pytest).
 
 ---
 

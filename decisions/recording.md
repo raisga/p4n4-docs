@@ -1,24 +1,24 @@
 # p4n4 — Recording in core
 
-**Version:** 0.1  
+**Version:** 0.2  
 **Date:** 2026-10-15  
 **Status:** Draft, not implemented
 
 ## Summary
 
-Move a client project's walkthrough recorder into the p4n4 CLI as `p4n4 record`, so any p4n4 project can produce polished demo MP4s per theme and per role (`normie`, `power`, `admin`). Walkthroughs become declarative scenario files: core ships one default per role, and a project or theme overrides them.
+Move a client project's walkthrough recorder into the p4n4 CLI as `p4n4 record`, so any p4n4 project can produce polished demo MP4s per theme, per role (`normie`, `power`, `admin`) and per viewport (desktop, phone, tablet). Walkthroughs become declarative scenario files: core ships one default per role, and a project or theme overrides them.
 
 The target is demo and sales video, so the design favours watchable pacing, brand fidelity and reproducible output over test strictness. A failed step is logged and skipped where the video can still make sense, as the script does today.
 
 ## Current state
 
-A client project's `scripts/record_walkthrough.py` (452 lines, a `uv run --script` with Playwright) records one MP4 per theme, always as `normie`. It lives in one project and reaches into the p4n4 checkout by relative path (`ROOT.parents[2] / "dashboard"`, `/ "api"`).
+A client project's `scripts/record_walkthrough.py` (505 lines, a `uv run --script` with Playwright) records three MP4s per theme (desktop, phone and tablet), always as `normie`. It lives in one project and reaches into the p4n4 checkout by relative path (`ROOT.parents[2] / "dashboard"`, `/ "api"`).
 
 What one run does, per theme:
 
 1. Switches the project to the theme with the project's own `scripts/use_theme.py` (config, Grafana, store language), then runs `p4n4-dashboard:<brand id>`, building it with `make image THEME=…` if missing.
 2. Starts p4n4-api with `P4N4_API_DEV_USERS=true` if none answers on `$P4N4_API_URL`, logging to `recordings/p4n4-api.log`.
-3. Opens headless Chromium at 1920×1080 in the brand's `defaults.locale` and `themeMode`, injects a drawn pointer, and turns on Flutter's semantics tree.
+3. Per viewport (see [Viewports](#viewports)), opens a fresh headless Chromium in the brand's `defaults.locale` and `themeMode`, injects a drawn pointer (a fingertip on touch viewports), and turns on Flutter's semantics tree.
 4. Signs in as `normie` / `p4n4`, steps through the first-sign-in tour, opens each tab in `normieTabs` by `tabOrder` (Cameras last), asks the brand's first Assistant suggestion and waits up to 180 s for the answer, opens all cameras, signs out.
 5. Trims Flutter's loading lead and converts WebM to H.264 MP4 (CRF 18, 30 fps) with ffmpeg; restores the original theme unless `--keep`.
 
@@ -40,7 +40,8 @@ Goals:
 - One MP4 per theme × role, from one command: `p4n4 record --role normie,power,admin --theme brand-a,brand-b`.
 - Each role's video shows what that role sees and can do: its tabs, plus one or two actions only it has.
 - Walkthroughs are data (scenario files), with core defaults per role and overrides per project and per theme.
-- Same quality as today: drawn pointer, `--pace`, trimmed lead, H.264 MP4 at 1920×1080.
+- Each theme × role at every viewport: desktop, and the responsive phone and tablet layouts as touch devices.
+- Same quality as today: drawn pointer, `--pace`, trimmed lead, H.264 MP4 at device pixels (1920×1080, 1170×2532, 1536×2048).
 
 Non-goals:
 
@@ -65,6 +66,23 @@ Rules that apply to all three:
 - Role actions that change state (feed action, banner, Views) are undone by the scenario's `cleanup` steps, so recording leaves the demo as it was.
 - Admin videos never show user management or secrets screens: they would put real usernames on a sales video.
 - Credentials come from `--user`/`--password` per role or a `record.users` map; the dev users (`normie`, `power`, `admin` / `p4n4`) are the fallback only when the API runs with `P4N4_API_DEV_USERS=true`.
+
+## Viewports
+
+Every run records each theme × role at all three viewports; there is no flag to pick some. They differ in layout and input, not in scenario: the same scenario file drives all three.
+
+| Viewport | CSS size | Pixel density | Video | Input | Dashboard layout |
+| --- | --- | --- | --- | --- | --- |
+| `desktop` | 1920×1080 | 1× | 1920×1080 | mouse, drawn pointer | side rail |
+| `phone` | 390×844 | 3× | 1170×2532 | touch, fingertip while down | bottom bar |
+| `tablet` | 768×1024 | 2× | 1536×2048 | touch, fingertip while down | bottom bar |
+
+What the runner does differently on a touch viewport:
+
+- **Navigation.** Under 800 px wide the dashboard swaps the rail for a bottom bar of up to five tabs; the rest become app-bar icon buttons labelled with the tab's name. The rail's destinations are buttons named `<label> Tab i of n`, the bottom bar's are `tab`s named `<label>`, so a nav lookup tries both, the bottom bar's first: Home's shortcuts carry the same names, and on a tablet they are on screen, left of the bar's tabs.
+- **Taps and scrolls.** Sent as CDP `Input.dispatchTouchEvent` (Playwright's touchscreen can only tap, not hold or drag): a tap holds for 150 ms so the fingertip shows, and a scroll is a slow swipe mid-screen, held before lifting so it doesn't fling. Touch input also keeps Flutter's hover tooltips out of the video.
+- **Sharpness.** Playwright's screencast records at the browser's own scale, not the emulated one, so Chromium is launched with `--force-device-scale-factor=<density>` as well as the context's `device_scale_factor`. With only the emulated one, the video is CSS-sized in the corner of a grey frame.
+- **Tour.** Each viewport is a fresh browser context, so the first-sign-in tour (kept per browser) plays in every video.
 
 ## Architecture
 
@@ -97,13 +115,13 @@ flowchart TB
     convert -- writes --> output
 ```
 
-Stage 1 runs once per theme; stages 2 and 3 run once per role. Scenarios resolve before any browser opens, so `--dry-run` stops there.
+Stage 1 runs once per theme; stages 2 and 3 run once per role and viewport. Scenarios resolve before any browser opens, so `--dry-run` stops there.
 
 Modules in `cli/p4n4/record/`:
 
-- `command.py`: the Typer command, option parsing, theme × role loop.
+- `command.py`: the Typer command, option parsing, theme × role × viewport loop.
 - `scenario.py`: load, `extends` merge, validate the step vocabulary, resolve arb keys.
-- `runner.py`: today's `Walk` (find by label, tap, type, pace), one handler per step, `cleanup` in a `finally`.
+- `runner.py`: today's `Walk` (find by label, tap or touch, type, scroll or swipe, pace), one handler per step, `cleanup` in a `finally`.
 - `stack.py`: p4n4-api reachability and dev-user check, the `switch_theme` hook, dashboard image and health.
 - `video.py`: lead trim and ffmpeg conversion, `run.json`.
 - `scenarios/normie.yaml`, `power.yaml`, `admin.yaml`: the core defaults.
@@ -119,7 +137,7 @@ p4n4 record [--theme T,… | --all-themes] [--role normie,power,admin | --all-ro
             [--chromium PATH] [--dry-run]
 ```
 
-Defaults: the active theme, role `normie`, out `recordings/`. The run is theme-major (switch once, record every role), since a switch costs minutes and a role costs a sign-in. `--dry-run` resolves and prints each theme × role scenario without opening a browser. Playwright ships as an optional extra, `pip install 'p4n4[record]'`; ffmpeg and Docker are checked up front with a clear message.
+Defaults: the active theme, role `normie`, out `recordings/`. The run is theme-major (switch once, record every role at every viewport), since a switch costs minutes and a role costs a sign-in. `--dry-run` resolves and prints each theme × role scenario without opening a browser. Playwright ships as an optional extra, `pip install 'p4n4[record]'`; ffmpeg and Docker are checked up front with a clear message.
 
 ### Scenario file
 
@@ -175,9 +193,13 @@ Passwords are named by environment variable, never stored in the file.
 ```
 recordings/
   brand-a/
-    normie.mp4
+    normie.mp4          # desktop
+    normie-phone.mp4
+    normie-tablet.mp4
     power.mp4
-    admin.mp4
+    power-phone.mp4
+    …
+    admin-tablet.mp4
     run.json          # versions, scenario hash, skipped steps, durations
   p4n4-api.log
 ```
@@ -192,7 +214,7 @@ Recording runs on a workstation against a trusted local deployment, in line with
 - **What lands in the video.** Passwords go into the dashboard's masked field, and the runner never echoes them to its log. Admin scenarios avoid users, secrets and device-token screens by default.
 - **Licensed footage.** Demo clips may carry licences such as CC BY-NC-SA 4.0 and then and must not be published commercially. `run.json` copies the brand's `video.demoCredits`, and the CLI prints them after each run as a reminder; it does not add them to the video.
 - **Undoing changes.** State-changing role actions run under `cleanup`, which also runs when a step fails, so a crashed admin run does not leave a banner up or Views rewritten.
-- **Resources.** Record from a workstation, not the Jetson: Chromium at 1920×1080 plus `libx264 -preset slow` competes with on-device inference. The Assistant step keeps the 180 s wait, since the model runs where the stack runs. Raw WebM is deleted after conversion; today's four MP4s are 6.8–8.8 MB each, so three roles per theme stay well under 50 MB.
+- **Resources.** Record from a workstation, not the Jetson: Chromium at 1920×1080 plus `libx264 -preset slow` competes with on-device inference. The Assistant step keeps the 180 s wait, since the model runs where the stack runs. Three viewports triple the run time (the Assistant wait included). Raw WebM is deleted after conversion; today's desktop MP4s are 6.8–8.8 MB each, so nine videos per theme (three roles × three viewports) come to roughly 100 MB.
 
 ## Migration and rollout
 
@@ -212,5 +234,5 @@ Dashboard-side work is small but needed for stable labels: the arb keys the role
 - [ ] Chapter markers per tab in the MP4 (cheap with ffmpeg metadata), or a still title card per role at the start?
 - [ ] Do admin videos show the Clients screen, or is that too close to real customer data for sales use?
 - [ ] Which power action is the better demo: acting on a feed item or choosing the Assistant's model?
-- [ ] Mobile or tablet viewport variants (e.g. 390×844) for the native-app story, or 1920×1080 only?
+- [x] Mobile or tablet viewport variants? Yes: every run records desktop, phone (390×844) and tablet (768×1024), native-size portrait MP4s; see [Viewports](#viewports).
 - [ ] Does the CLI need a Docker image with Chromium and ffmpeg, so recording needs nothing installed on the host?

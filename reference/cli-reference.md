@@ -2,6 +2,10 @@
 
 Install: `pip install p4n4`
 
+> **Not implemented yet:** `add`, `remove`, `upgrade`, `ei` and `template` are registered but
+> print "not yet implemented" and exit `1`. Their sections below describe the planned
+> behavior and what to do meanwhile.
+
 ## Global options
 
 ```
@@ -60,7 +64,11 @@ See [Getting Started](../getting-started.md#project-layout).
 
 ## `p4n4 add STACK`
 
-Add a stack to an existing project.
+> Not implemented yet. Meanwhile, start a new project with the layers you want
+> (`p4n4 init --layer …`) and move your data across, or copy the layer's directory from a
+> fresh `p4n4 init` and add it to `layers` in `.p4n4.json`.
+
+Planned: add a stack to an existing project.
 
 ```bash
 p4n4 add ai
@@ -71,7 +79,10 @@ p4n4 add extras --path /srv/my-project
 
 ## `p4n4 remove STACK`
 
-Remove a stack from an existing project.
+> Not implemented yet. Meanwhile, stop the layer (`p4n4 down <stack>`, with `--volumes` to
+> drop its data) and remove it from `layers` in `.p4n4.json`.
+
+Planned: remove a stack from an existing project.
 
 ```bash
 p4n4 remove extras
@@ -162,7 +173,10 @@ only while `ei-runner` is in the ai layer's `COMPOSE_PROFILES`.
 
 ## `p4n4 upgrade [STACK]`
 
-Pull latest Docker images.
+> Not implemented yet. Meanwhile, `p4n4 up --pull` pulls the pinned images before starting
+> (images are pinned to a minor version, so this brings patch releases).
+
+Planned: pull the latest Docker images.
 
 ```bash
 p4n4 upgrade               # all stacks
@@ -253,7 +267,7 @@ Until then, the edge layer keeps running and every command prints a reminder. Se
 
 ## `p4n4 ei`
 
-> Not implemented in v0.1: `deploy`, `run` and `status` print "not yet implemented" and
+> Not implemented yet: `deploy`, `run` and `status` print "not yet implemented" and
 > exit `1`. Manage the runner with the AI stack's `make deploy-model` / `make up` and its
 > [HTTP API](../stacks/edge-inference.md#http-api) instead.
 
@@ -263,13 +277,17 @@ Until then, the edge layer keeps running and every command prints a reminder. Se
 | `run` | Start the inference runner |
 | `status` | Show runner container status |
 
-`list`, `infer`, `update` and `info` are specified for v0.2 ([F-0.2.4](../decisions/specs.md#f-024--p4n4-ei-subcommand-expansion)).
+`list`, `infer`, `update` and `info` are specified as well ([F-0.2.4](../decisions/specs.md#f-024--p4n4-ei-subcommand-expansion)).
 
 ---
 
 ## `p4n4 template`
 
-| Subcommand | Description |
+> Not implemented yet. Copy a template from
+> [p4n4-templates](https://github.com/raisga/p4n4-templates) instead; see the
+> [Template Registry](template-registry.md).
+
+| Subcommand | Planned behavior |
 |------------|-------------|
 | `search [QUERY]` | List templates from the community registry |
 | `install NAME` | Install a template into the current project |

@@ -3,7 +3,7 @@
 > EdgeAI + GenAI Integration Platform
 > Version 0.2 | 2026
 
-**p4n4** (pronounced *"pana"*) is a self-hosted, open-source Docker Compose platform for small-to-medium IoT deployments augmented with an AI layer (Edge and/or Generative). It takes direct inspiration from the IoTStack TIGUITTO pattern and extends it with a dedicated **GenAI stack** (n8n, Letta, Ollama) and **EdgeAI stack** (Edge Impulse and ONNX inference).
+**p4n4** (pronounced *"pana"*) is a self-hosted, open-source Docker Compose platform for small-to-medium IoT deployments augmented with an AI layer (Edge and/or Generative). It takes direct inspiration from the IoTStack TIGUITTO pattern and extends it with an **AI stack**: local GenAI (Ollama, with optional Letta and n8n), fast typed decisions (System 1) and on-device inference (Edge Impulse and ONNX).
 
 ---
 
@@ -37,6 +37,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | Document | Description |
 |----------|-------------|
 | [Getting Started](getting-started.md) | Installation, first project, service URLs |
+| [Troubleshooting](guides/troubleshooting.md) | Common failures and their fixes: container names, `p4n4-net`, logins, memory, the Pi 5 |
 | [IoT Stack](stacks/iot-stack.md) | Mosquitto · Node-RED · InfluxDB · Grafana reference |
 | [AI Stack](stacks/ai-stack.md) | Ollama · Letta · n8n reference |
 | [Edge Inference](stacks/edge-inference.md) | The AI stack's inference runner (`ei-runner`): model backends, HTTP API |
@@ -44,18 +45,21 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Migrating from the edge stack](guides/migrating-from-edge.md) | `p4n4 migrate edge`, by hand, and what changed names |
 | [Dashboard Service](stacks/dashboard.md) | Web UI on port 8088 with a same-origin proxy |
 | [CLI Reference](reference/cli-reference.md) | All `p4n4` commands |
+| [Configuration](reference/configuration.md) | Every layer's `.env` keys: defaults, who reads them, which are shared across layers |
+| [MQTT Topics](reference/mqtt-topics.md) | Every topic p4n4 publishes or consumes, with payloads and where each is stored |
 | [REST API](reference/api.md) | p4n4-api: sign-in, project, stack and edge metrics endpoints |
 | [Dashboard](reference/dashboard.md) | p4n4-dashboard: Flutter app for desktop and mobile |
 | [Template Registry](reference/template-registry.md) | Using and contributing templates |
 | [Hardware](reference/hardware.md) | p4n4-hw: KiCad designs, RPi5 GPIO scripts |
 | [Emulator](reference/emulator.md) | p4n4-emu: workstation hardware emulation |
-| [Security](guides/security.md) | Hardening guide |
+| [Security](guides/security.md) | Hardening guide: logins, MQTT device accounts and TLS, network exposure, secret rotation |
 | [Development](guides/development.md) | Run a project on your checkout's lib, cli, api and dashboard (`scripts/dev`, `doctor`, `repos`) |
 | [Deploying a template](guides/deployment.md) | Rehearse a template under p4n4-emu, then deploy it to Hetzner Cloud or a host you bring (GCP example) |
 | [Emulators on AWS](guides/aws.md) | Set up an AWS account, run a project under p4n4-emu on an EC2 instance, take a report and its cost, delete the instance |
 | [Emulators on Google Cloud](guides/gcp.md) | The same on Google Cloud: a project, a Compute Engine VM (Axion arm64), the report, billing by label, deletion |
 | [Emulators on Azure](guides/azure.md) | The same on Azure: a resource group per run, a Cobalt 100 arm64 VM that deletes its own group at its TTL, the report, cost by resource group |
 | [Emulators on DigitalOcean](guides/digitalocean.md) | The same on DigitalOcean: x86 Droplets only (native or QEMU mode), a team of its own, a Droplet that destroys itself at its TTL, cost from run time |
+| [Raspberry Pi 5 node](guides/raspberry-pi.md) | A Pi 5 as a p4n4 node: OS, Docker, the stacks sized for 8 GB, the hardware daemon (LED, button), the emulator rehearsal |
 | [Testing on a Jetson Orin Nano](guides/jetson.md) | Remote test host: Tailscale SSH, NoMachine desktop, Cloudflare Tunnel for web UIs, Ollama on the Jetson GPU |
 | [Use case: greenhouse telemetry](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-telemetry.md) | `mqtt-influx-grafana` template + p4n4-api + a white-label dashboard, tied together by `.p4n4.json` |
 | [Use case: greenhouse assistant](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-assistant.md) | `mqtt-influx-grafana-ollama`: the same project plus a local LLM that answers from the readings, and moving a project onto it |
@@ -67,11 +71,11 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [ADR-002](decisions/adr/ADR-002.md) | Per-layer subdirectories in multi-layer projects |
 | [ADR-003](decisions/adr/ADR-003.md) | The dashboard ships as a web container by default |
 | [ADR-004](decisions/adr/ADR-004.md) | An encoder classifier for bounded decisions (System 1) |
+| [ADR-005](decisions/adr/ADR-005.md) | Edge inference joins the AI stack; p4n4-edge becomes p4n4-extras |
 | [AI Harness (draft)](decisions/ai-harness.md) | Building p4n4 projects with coding agents: harness tools, community extras (`stacks/extras/`), the p4n4 Car reference project and its OBD-II spike |
-| [System 1](decisions/system1.md) | Fast typed decisions with Laya: spike results, rules of use, architecture, phases (S1, S2 and the S3 infrastructure implemented) |
-| [Known Issues](project/known-issues.md) | Problems found 2026-09-23 to 09-27, with reproductions; all fixed |
-| [Releasing](project/releasing.md) | Release set order, `gh release` commands, how to write a release body |
-| [Release checklist, 2026-07](project/todo.md) | Historical: p4n4-lib extraction and multi-layer rollout |
+| [System 1](decisions/system1.md) | Fast typed decisions with Laya: spike results, rules of use, architecture, phases (S1, S2, the S3 infrastructure and S4 implemented) |
+| [Recording in core (draft)](decisions/recording.md) | `p4n4 record`: demo videos per theme, role and viewport from declarative scenarios |
+| [Releasing](project/releasing.md) | Release set order, what to do before publishing, `gh release` commands, how to write a release body |
 
 ---
 
@@ -164,6 +168,7 @@ graph TD
 |---------|----------|--------|--------------------|
 | Edge Minimal | Raspberry Pi 5 (8 GB) | IoT only | N/A |
 | Edge AI | Raspberry Pi 5 + Coral/Hailo | IoT + GenAI (CPU) | `phi3:mini` |
+| Edge GPU | NVIDIA Jetson Orin Nano (8 GB) | All (Ollama on the GPU) | `gemma4:e2b`, `qwen2.5:3b` |
 | Mid-range Server | Intel NUC / x86 (16 GB RAM) | All | `mistral:7b` |
 | GPU Workstation | NVIDIA RTX 3080+ (16 GB VRAM) | All | `llama3:8b` |
 | Cloud VM | AWS t3.xlarge / GCP n2-standard-4 | All | `mistral:7b` or API |
@@ -185,7 +190,7 @@ p4n4 secret rotate
 
 Key hardening steps:
 
-- Disable anonymous MQTT access (`allow_anonymous false`) and use password + ACL files in production.
+- Set `MQTT_USER` / `MQTT_PASSWORD` so devices need a login (the stack's own services use an internal listener), and add an account per device, an ACL and TLS in production.
 - Place a reverse proxy (Nginx, Caddy, Traefik) in front with TLS termination.
 - Never commit `.env` to version control — only `.env.example` is committed.
 
@@ -198,19 +203,22 @@ See the [Security guide](guides/security.md) for the full hardening walkthrough.
 ### Phase 1 — Foundation (v0.1)
 - [x] IoT stack: Mosquitto · Node-RED · InfluxDB · Grafana
 - [x] GenAI stack: Ollama · Letta · n8n integrated via Node-RED
-- [x] Edge AI stack: inference runner with Edge Impulse, ONNX and mock backends
+- [x] Edge inference: runner with Edge Impulse, ONNX and mock backends (now the AI stack's `ei-runner`)
 - [x] `p4n4 init`, `up`, `down`, `status`, `validate` CLI commands
 - [x] `p4n4-api` v0.1: JWT sign-in, project, stack status and edge metrics (read-only)
 - [x] `p4n4-dashboard`: Flutter app with Services, Edge, Agent, Grafana and Video tabs
 - [x] Published to PyPI as `p4n4`
 
 ### Phase 2 — Intelligence Layer (v0.2)
+- [x] System 1: fast typed decisions with laya (`p4n4-system1` 0.1.0, `p4n4 ai system1`)
+- [x] Dashboard sign-in with roles, assistant, Feed and Home (p4n4-dashboard 1.2.0)
+- [x] Edge inference merged into the AI stack; optional services in `extras` ([ADR-005](decisions/adr/ADR-005.md))
 - [ ] Pre-built Letta agent personas: Site Monitor, Anomaly Analyst, Operator Assistant
 - [ ] Node-RED AI palette: curated nodes for Ollama/Letta integration
 - [ ] n8n workflow library: alert enrichment, scheduled digest, incident escalation
-- [ ] `p4n4 ei` subcommands: deploy, run, status (stubs in v0.1), list, infer, update, info
-- [ ] `p4n4 template pull/push/search` — community template registry
-- [ ] First official community templates published
+- [ ] `p4n4 ei` subcommands: deploy, run, status (stubs today), list, infer, update, info
+- [ ] `p4n4 template search/install/list` (stubs today), `add`, `remove`, `upgrade`
+- [x] First official community templates published (six in [p4n4-templates](reference/template-registry.md))
 
 ### Phase 3 — Scale & Extensibility (v0.3+)
 - [ ] Multi-site federation
@@ -219,7 +227,7 @@ See the [Security guide](guides/security.md) for the full hardening walkthrough.
 - [ ] Optional Kafka/NATS layer for high-throughput deployments
 - [ ] Kubernetes / Helm chart (optional, multi-node)
 - [ ] `p4n4 template upgrade` — delta merge with changelog
-- [ ] Shell completion for bash, zsh, fish
+- [ ] Shell completion of stack names (commands already complete: `p4n4 --install-completion`)
 
 ---
 
@@ -256,14 +264,14 @@ p4n4/                       (monorepo — you are here)
 
 | Service | Stack | Port(s) | Exposure |
 |---------|-------|---------|----------|
-| Mosquitto | iot | 1883, 9001 (8883 with TLS) | IoT devices, Node-RED |
+| Mosquitto | iot | 1883, 9001 (8883 with TLS) | IoT devices (a login once `MQTT_PASSWORD` is set); the stack's services use `mqtt:1883` on `p4n4-net` |
 | Node-RED | iot | 1880 | Operators (login required), internal services |
 | InfluxDB | iot | 8086 | Node-RED, Grafana, n8n |
 | Grafana | iot | 3000 | Operators (browser) |
 | Ollama | ai | 11434 | Node-RED, Letta, n8n on `p4n4-net`; host port on `127.0.0.1` (`OLLAMA_BIND`) |
 | Letta | ai | 8283 | Node-RED, n8n on `p4n4-net`; host port on `127.0.0.1` (`LETTA_BIND`) |
 | n8n | ai | 5678 | Operators, Grafana webhooks |
-| Inference runner | edge | 8080 | Health and test inference (no auth); host port on `127.0.0.1` (`EI_RUNNER_BIND`) |
+| Inference runner | ai | 8080 | Health and test inference (no auth); host port on `127.0.0.1` (`EI_RUNNER_BIND`) |
 | p4n4 REST API | api | 8000 | Dashboard and other clients (binds `127.0.0.1` by default) |
 | p4n4 Dashboard (web) | dashboard | 8088 | Operators (browser) |
 
@@ -288,9 +296,9 @@ p4n4/                       (monorepo — you are here)
 ### Key Environment Variables
 
 ```bash
-# Mosquitto (edge runner's login, once the broker requires one)
-MQTT_USER=p4n4mqtt
-MQTT_PASSWORD=changeme            # must match config/mosquitto/passwd
+# Mosquitto (IoT .env): with a password set, devices need a login
+MQTT_USER=devices
+MQTT_PASSWORD=                    # empty: devices connect anonymously
 
 # InfluxDB
 INFLUXDB_USERNAME=admin
@@ -313,11 +321,11 @@ N8N_ENCRYPTION_KEY=changeme       # 32+ characters; keep it once n8n has stored 
 # Letta
 LETTA_SERVER_PASSWORD=changeme
 
-# Edge runner
+# Inference runner (AI .env, ei-runner profile)
 MODEL_BACKEND=auto                # auto | eim | onnx | mock
 EI_MODEL_FILE=model.eim
 ONNX_MODEL_FILE=model.onnx
 EI_API_KEY=                       # optional, Edge Impulse cloud features only
 ```
 
-> Cross-stack note: `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET` must be identical across all stack `.env` files when deploying manually. The CLI handles this automatically: `p4n4 init` writes the shared values identically to every layer's `.env` ([ADR-002](decisions/adr/ADR-002.md)).
+> Cross-stack note: `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, and `INFLUXDB_BUCKET` must be identical across all stack `.env` files when deploying manually. The CLI handles this automatically: `p4n4 init` writes the shared values identically to every layer's `.env` ([ADR-002](decisions/adr/ADR-002.md)). Every key, per layer, is in the [Configuration reference](reference/configuration.md).

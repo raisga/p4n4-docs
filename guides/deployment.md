@@ -225,6 +225,11 @@ password_file /mosquitto/config/passwd
 
 Remove the file's global `allow_anonymous true` line and the 9001 WebSocket listener, or give the WebSocket listener its own settings. Keep `per_listener_settings` at the top of the file. In the override, add a `volumes:` entry that mounts `config/mosquitto/passwd` at `/mosquitto/config/passwd`, and add `"8883:8883"` to `mqtt`'s ports. Get the certificate for the broker's DNS name, for example with `certbot certonly --standalone -d mqtt.example.com` before Caddy takes port 80, or by copying it from Caddy's `caddy-data` volume. Restart `mqtt` after each renewal. The [Security guide](security.md#mosquitto-authentication) covers password and ACL files.
 
+> This is the template's own `mosquitto.conf`. A project made with `p4n4 init` from the base
+> IoT stack needs no edits: it publishes only the device listeners, and `MQTT_USER`,
+> `MQTT_PASSWORD` and `MQTT_TLS_CERT_FILE` / `MQTT_TLS_KEY_FILE` in `.env` turn on logins and
+> TLS (see the [Security guide](security.md#mosquitto-authentication)).
+
 ### 3.4 Firewall: use the provider's firewall
 
 Docker writes its own iptables rules for published ports, ahead of UFW's. A `ufw deny 3000` on the host doesn't stop Docker from accepting traffic on 3000. Filter at the provider's network firewall (Hetzner Cloud Firewall, GCP VPC firewall rules), which sits outside the VM. Bind ports to `127.0.0.1` as in [3.2](#32-bind-data-services-to-localhost-put-grafana-behind-tls), so a firewall mistake doesn't expose them.

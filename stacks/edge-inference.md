@@ -107,7 +107,7 @@ old values.
 `.eim` files are executables for one architecture (x86_64, aarch64, armv7l). Download the
 one that matches the device from Edge Impulse Studio under **Deployment → Linux**.
 
-> `p4n4 ei deploy`, `ei run` and `ei status` are stubs in v0.1 and exit non-zero. Use the
+> `p4n4 ei deploy`, `ei run` and `ei status` aren't implemented yet and exit non-zero. Use the
 > Makefile or Compose commands above. See the [CLI reference](../reference/cli-reference.md#p4n4-ei).
 
 ## HTTP API
@@ -142,7 +142,7 @@ curl -X POST http://localhost:8080/api/v1/infer \
 | `ONNX_MODEL_FILE` | `model.onnx` | `.onnx` filename in `onnx/models/` |
 | `ONNX_LABELS` | — | Comma-separated class labels in output order |
 | `MQTT_HOST` / `MQTT_PORT` | `p4n4-mqtt` / `1883` | Broker address |
-| `MQTT_USER` / `MQTT_PASSWORD` | — | Must match the IoT stack |
+| `MQTT_USER` / `MQTT_PASSWORD` | — | Only for a broker other than the IoT stack's own: its internal listener (`p4n4-mqtt:1883`) needs no login |
 | `MQTT_TOPIC_INPUT` | `sensors/+/raw` | Topic filter for feature vectors |
 | `MQTT_TOPIC_RESULTS` | `inference/{device}/result` | Result topic template |
 | `INFLUXDB_TOKEN` | `p4n4-stack-token` | Must match the IoT stack |

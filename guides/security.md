@@ -27,14 +27,14 @@ and JWT signing key, so keep it private and back it up. See the
 
 ## Network exposure
 
-p4n4 0.2.x is meant for development and trusted local networks.
+p4n4 is meant for development and trusted local networks.
 
 The services without authentication are published on `127.0.0.1` only: Ollama (11434,
 `OLLAMA_BIND`), Letta (8283, `LETTA_BIND`), the inference runner (8080, `EI_RUNNER_BIND`)
 and p4n4-api (8000, `P4N4_API_HOST`). Keep them there unless the network is trusted, and use
 a reverse proxy with TLS for remote access rather than changing the bind address.
 
-Mosquitto (1883/9001), InfluxDB (8086), Node-RED (1880), Grafana (3000), n8n (5678) and the
+Mosquitto's device listeners (1883/9001, a login once `MQTT_PASSWORD` is set), InfluxDB (8086), Node-RED (1880), Grafana (3000), n8n (5678) and the
 dashboard (8088) are published on every interface. In production:
 
 - Place a reverse proxy (Nginx, Caddy, Traefik) in front with TLS termination.
@@ -68,23 +68,45 @@ runs with `P4N4_API_AUTH=off` or can't be reached, so keep auth on. For its web 
 
 ## Mosquitto authentication
 
-The default `mosquitto.conf` ships with `allow_anonymous true` for easy development.
-For production, disable anonymous access and use password + ACL files:
+The broker has two kinds of listener. Its entrypoint (`config/mosquitto/entrypoint.sh`)
+writes them from the IoT `.env` into `/mosquitto/conf.d` at every start, so passwords live
+only in `.env` and `config/mosquitto/passwd`, never in `mosquitto.conf`.
 
-```conf
-allow_anonymous false
-password_file /mosquitto/config/passwd
-acl_file /mosquitto/config/acl
-```
+| Listener | Container port | Published on | Login |
+|----------|----------------|--------------|-------|
+| Internal | 1883 | not published: `p4n4-net` only | Never. Node-RED, Telegraf, the inference runner and the other stacks' services connect to `mqtt:1883` |
+| Devices | 1884 | `MQTT_PORT` (default 1883) | When `MQTT_PASSWORD` is set |
+| Devices, WebSocket | 9001 | `MQTT_WS_PORT` (default 9001) | When `MQTT_PASSWORD` is set |
+| Devices, TLS | 8883 | `MQTT_TLS_PORT` (default 8883) | When `MQTT_PASSWORD` is set; only with `MQTT_TLS_CERT_FILE` and `MQTT_TLS_KEY_FILE` |
 
-Generate the password file:
+To require a login from devices, set both in the IoT `.env` and recreate the broker
+(`docker compose up -d mqtt` in the iot layer's directory):
 
 ```bash
-mosquitto_passwd -c config/mosquitto/passwd <username>
+MQTT_USER=devices
+MQTT_PASSWORD=<a long random value>
 ```
 
-Then set matching `MQTT_USER` / `MQTT_PASSWORD` in the AI stack's `.env` (for the inference runner) and in any
-Node-RED or n8n MQTT nodes.
+With `MQTT_PASSWORD` empty, the device listeners accept anonymous clients: fine on a
+workstation, not on a network you don't control. The stack's own services are unaffected
+either way, since they use the internal listener.
+
+- **More accounts:** one per device or tool, in `config/mosquitto/passwd`
+  (`make mqtt-user NAME=<name>` asks for the password). The file is read only while
+  `MQTT_PASSWORD` is set; until then the broker logs that it ignores it.
+- **Topic access:** copy `config/mosquitto/acl.example` to `config/mosquitto/acl` to limit
+  what each account may read and write. `MQTT_USER` always gets every topic.
+- **TLS:** put the server certificate (chain) and key in `config/mosquitto/certs/` and set
+  `MQTT_TLS_CERT_FILE` and `MQTT_TLS_KEY_FILE` to their names. The entrypoint copies them so
+  the broker can still read them after it drops root. Restart the broker after renewing.
+- **Check:** `docker logs p4n4-mqtt` prints the result at each start, e.g.
+  `p4n4 mqtt: devices (mqtt :1884, ws :9001) need a login: 3 account(s), ACL: yes`.
+
+`MQTT_USER` may not contain `:`, and no `MQTT_*` value may contain spaces. Clients on the
+host or the LAN (the [hardware daemon](../reference/hardware.md#p4n4_hwdpy-hardware-daemon),
+`mosquitto_pub` from your shell, real devices) use the device listeners and need a login once
+it's on. The inference runner's `MQTT_USER` / `MQTT_PASSWORD` in the AI `.env` are needed only
+when it talks to a broker other than the stack's own.
 
 ## Secret rotation
 
