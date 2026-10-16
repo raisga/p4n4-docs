@@ -22,6 +22,12 @@ a block device, `blkio_config` (disk bandwidth) for each.
 All enabled stacks of a project share one emulated device: when their combined CPU or
 memory shares exceed the profile, every service is scaled down so the total fits.
 
+System 1 (the AI stack's opt-in `system1` service) is the exception. It gets a fixed
+2 GiB and 2 CPUs, capped at the board, and the other services shrink to fit around it.
+It runs native even when the profile emulates arm64, because PyTorch segfaults under
+QEMU. `up` warns where it takes more than half the memory (`rpi4`) and where it can't fit
+(`mcu-class`) ([System 1](../decisions/system1.md#8-budgets-per-board)).
+
 Overlays live in `~/.p4n4-emu/overlays/<stack-dir>-<hash>/<stack>.emu.yml`, one folder per
 stack directory, so two projects never share one. Each overlay records its profile in an
 `x-p4n4-emu` block (Compose ignores `x-` keys), so `down`, `status`, `logs` and
@@ -122,6 +128,7 @@ start, the stacks this run started are stopped again; stacks already running sta
 ```bash
 p4n4-emu status                    # the profile up used; usage against limits
 p4n4-emu status --json             # the same, for scripts and CI
+p4n4-emu report                    # usage over time, restarts, OOM kills and logs, in one .tar.gz
 p4n4-emu profile switch rpi4       # new CPU / memory limits, without restarting
 p4n4-emu down                      # stop containers
 p4n4-emu down --volumes            # stop and remove data volumes
@@ -132,6 +139,14 @@ For each service, `status` shows CPU and memory in use against the container's l
 for. **stale** means it doesn't: it was created before the overlay changed, or without
 it; `p4n4-emu up` recreates it.
 
+`report` samples usage several times (`--samples 5 --interval 2`) and writes
+`report.json`, `summary.md` and each container's last log lines (`logs/<container>.log`) to
+`./p4n4-emu-report-<UTC time>.tar.gz`, or to `--output` (a `.tar.gz`, or else a directory).
+It lists **errors** (a container not running, unhealthy, OOM-killed or restarted, stale
+limits) and **warnings** (a peak at 90% of a limit); `--fail-on-issues` exits 1 on an error.
+`--label KEY=VALUE` records where the run happened. [Emulators on AWS](../guides/aws.md#6-get-the-report)
+uses it to bring results back from a cloud instance.
+
 `profile switch` applies the new profile's CPU and memory limits to running containers
 with `docker update`. Disk limits can't change that way, so `status` shows them stale until
 the next `up`, and a switch that changes the architecture is refused.
@@ -140,12 +155,14 @@ the next `up`, and a switch that changes the architecture is refused.
 
 ```
 p4n4-emu setup [--arch arm64|armv7] [--check-only]
-p4n4-emu up    [--profile PROFILE] [--stack iot|ai|edge|dashboard|iot,ai|all]
+p4n4-emu up    [--profile PROFILE] [--stack iot|ai|extras|dashboard|iot,ai|all]
                [--stack-dir PATH] [--arch arm64|armv7|x86_64 | --native]
                [--sim] [--sim-interval 2.0] [--sim-devices 1] [--build] [--pull]
                [--dry-run]
 p4n4-emu down  [--stack ...] [--stack-dir PATH] [--volumes] [--yes]
 p4n4-emu status [--profile PROFILE] [--stack ...] [--json]
+p4n4-emu report [--stack ...] [--stack-dir PATH] [--output PATH] [--samples 5]
+                [--interval 2.0] [--tail 500] [--label KEY=VALUE ...] [--fail-on-issues]
 p4n4-emu logs  [SERVICE] [--stack ...] [--stack-dir PATH] [--tail 100] [--no-follow]
 p4n4-emu profile list [--json]
 p4n4-emu profile show <name> [--json]
@@ -154,6 +171,8 @@ p4n4-emu sim start [--interval 2.0] [--devices 1] [--mqtt-host HOST] [--network 
                    [--rebuild]
 p4n4-emu sim stop
 p4n4-emu sim status
+p4n4-emu run   [--profile rpi5] [--device ID] [--scenario FILE] [--gpio-mqtt HOST[:PORT]]
+               [--no-parts] [--python PATH] SCRIPT [ARGS...]
 ```
 
 Without `--stack`, commands target the enabled stacks of the surrounding p4n4 project
@@ -190,32 +209,51 @@ Run standalone against a local Mosquitto:
 MQTT_HOST=localhost uv run python -m p4n4_emu.sim.sensor_sim
 ```
 
-## GPIO stub
+## Hardware stubs
 
-`p4n4_emu.hw.gpio_stub` is a drop-in `RPi.GPIO` replacement for running [RPi5 hardware scripts](hardware.md) on a workstation:
+`p4n4-emu run` runs a Python script, such as the [RPi5 hardware scripts](hardware.md),
+against an emulated Raspberry Pi: the hardware libraries it imports are replaced by stubs,
+so it runs unmodified on a workstation.
 
-```python
-import sys
-import p4n4_emu.hw.gpio_stub as GPIO
-sys.modules["RPi"] = type(sys)("RPi")
-sys.modules["RPi.GPIO"] = GPIO
+```bash
+p4n4-emu run p4n4_button_handler.py                  # Pi 5 by default
+p4n4-emu run -p rpi4 --gpio-mqtt localhost read_sensors.py --verbose
+p4n4-emu run --python .venv/bin/python -- -m my_app  # the script's own virtualenv
 ```
 
-It covers the `RPi.GPIO` calls the p4n4 scripts make: `setmode`, `setup` (with
-`pull_up_down=` and `initial=`, one channel or a list), `output`, `input`, the edge
-functions (`add_event_detect`, `add_event_callback`, `remove_event_detect`,
-`event_detected`, with `bouncetime`) and `cleanup`. `PWM` and `wait_for_edge` aren't
-stubbed yet.
+| Library | What the stub covers |
+|---------|----------------------|
+| `RPi.GPIO` | As rpi-lgpio (the Pi 5's RPi.GPIO) behaves: `setmode` (BCM / BOARD), `setup`, `input` / `output`, edge detection with `bouncetime`, `wait_for_edge`, `PWM`, `RPI_INFO`, `cleanup` |
+| `lgpio` | Chips, claims, groups, alerts and callbacks (debounce included), `tx_pwm` / `tx_servo`, `i2c_*` / `spi_*` |
+| `gpiozero` | The real library, unmodified: it picks its lgpio pin factory, which runs on the `lgpio` stub |
+| `gpiod` | The libgpiod v2 API: chips, line info, `request_lines`, active-low, bias, edge events |
+| `smbus2`, `smbus` | Every SMBus call and `i2c_rdwr` |
+| `spidev` | `SpiDev` on `/dev/spidev0.0` and `0.1` |
+| `serial` (pyserial) | `Serial` on `/dev/serial0` and `/dev/ttyAMA0` |
 
-Nothing outside the script drives an input pin, so press a button with `set_input`, a
-stub-only call. A level change is an edge and fires the pin's callbacks:
+They share one set of pins and buses, and fail as the board does: a missing I2C address
+raises `OSError` 121, SPI reads zeros with nothing attached, a serial read waits for its
+timeout. The profile's board gives the revision in `/proc/device-tree` (what `RPI_INFO` and
+gpiozero read), the gpiochips and the `/dev` nodes, served inside the script's process.
 
-```python
-GPIO.set_input(27, GPIO.LOW)    # press the button on GPIO 27 (pulled up)
-GPIO.set_input(27, GPIO.HIGH)   # release it
+The buses carry register-level sensor models: a BME280 (I2C 0x76), an MPU-6050 (0x68), an
+ADS1115 (0x48), an MCP3008 (SPI 0.0) and a DS18B20 on 1-Wire
+(`/sys/bus/w1/devices/28-*/w1_slave`). A driver reads them as the real parts, through their
+calibration data and raw counts, and their values follow the sensor simulator's curves for
+one device (`--device`, default `emu-sensor-0`; `--scenario` for a scenario's waves), so the
+script reads what the simulator publishes for that device.
+
+With `--gpio-mqtt HOST[:PORT]`, inputs are driven over MQTT and pin levels are published:
+
+```bash
+mosquitto_pub -t emu/gpio/27/set -m 0         # press the button on GPIO 27 (pulled up)
+mosquitto_pub -t emu/gpio/27/set -m 1         # release it ("release" stops driving it)
+mosquitto_sub -t 'emu/gpio/+/state' -v        # every pin's level, on every change
 ```
 
-Set `logging.basicConfig(level=logging.DEBUG)` to see pin state transitions in your terminal.
+In tests, `p4n4_emu.hw.shims.install()` does what `run` does, and `pins.drive(27, 0)`
+presses the button directly. Not stubbed: the `gpiod` v1 API, `lgpio`'s serial calls, and
+PWM as a toggling level (a PWM output records its frequency and duty cycle).
 
 ## How faithful the emulation is
 
@@ -231,7 +269,8 @@ dashboard that stalls on disk), not to predict latency or throughput on the real
 | Disk bandwidth | `blkio_config` → `io.max` read/write bytes per second, on the whole disk that holds Docker's data root | Yes for direct and buffered I/O on cgroup v2; direct I/O only on v1 | Bandwidth only: no IOPS or latency limit, so small random writes are far faster than on an SD card (planned). Reads served from page cache aren't throttled. Volumes or bind mounts on another disk aren't limited. Skipped when no block device is found (tmpfs, NFS, some btrfs / LVM setups, Docker Desktop). `profile switch` can't change it on running containers. |
 | Disk priority | `blkio_config.weight` → `io.bfq.weight` | Only with the BFQ I/O scheduler | Has no effect on hosts using `mq-deadline` or `none`, the usual default for NVMe. |
 | Architecture | `platform: linux/arm64` with QEMU user-mode emulation | Yes: the arm64 images and binaries run | Speed: QEMU is roughly 3–10x slower, so timings mean nothing and LLM inference (Ollama) is impractical. Kernel features come from the host kernel, not the board's. |
-| Storage size, network, GPIO and other peripherals, accelerators, temperature | — | No | No capacity limit, no network shaping (planned: `tc netem`), no thermal throttling. GPIO is a stub (`p4n4_emu.hw.gpio_stub`); sensors come from the simulator. |
+| GPIO, I2C, SPI, UART, 1-Wire | `p4n4-emu run`: stubs for the libraries a script imports, and register-level sensor models | In the script's process | Logic levels and register contents, not electrical behaviour or timing: transfers are instant, PWM is recorded but doesn't toggle the pin, and a sensor reads the simulator's curve. Containers don't see these devices. |
+| Storage size, network, accelerators, temperature | — | No | No capacity limit, no network shaping (planned: `tc netem`), no thermal throttling. |
 
 On Docker Desktop the limits apply inside its Linux VM, and the VM's own CPU and memory
 settings cap everything on top of them.

@@ -17,6 +17,8 @@ The examples use [`mqtt-influx-grafana`](https://github.com/raisga/p4n4-template
                                            + firewall outside the VM
 ```
 
+To test on real edge hardware instead of a VM, see [Testing on a Jetson Orin Nano](jetson.md). To run the emulator itself on throwaway cloud instances, see the emulator guides for [AWS](aws.md), [Google Cloud](gcp.md), [Azure](azure.md) or [DigitalOcean](digitalocean.md).
+
 The emulator is a development tool. Nothing it generates gets deployed. A template is a complete, runnable Compose project, so the cloud host runs the template's own `docker-compose.yml` and a small override file.
 
 ---
@@ -472,7 +474,7 @@ services:
 
 ## Multi-layer templates
 
-`mqtt-influx-grafana-ollama` (iot + ai) and `mqtt-influx-grafana-ollama-go2rtc` (iot + ai + edge) keep one Compose project per layer (`iot/`, `ai/`, `edge/`). Each layer has its own `.env` ([ADR-002](../decisions/adr/ADR-002.md)). These steps change:
+`mqtt-influx-grafana-ollama` (iot + ai) and `mqtt-influx-grafana-ollama-go2rtc` (iot + ai + extras) keep one Compose project per layer (`iot/`, `ai/`, `extras/`). Each layer has its own `.env` ([ADR-002](../decisions/adr/ADR-002.md)). These steps change:
 
 - **Emulator.** `p4n4-emu up --profile <p>` at the project root starts every layer in dependency order, with the combined limits scaled down to fit one device. Use `--stack ai --native` to keep Ollama out of QEMU.
 - **Secrets.** `INFLUXDB_TOKEN`, `INFLUXDB_ORG` and `INFLUXDB_BUCKET` must be identical in every layer's `.env`. `p4n4 init` writes them identically; when you change one by hand, change it in every file.

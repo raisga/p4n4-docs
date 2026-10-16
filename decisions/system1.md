@@ -1,8 +1,8 @@
 # p4n4 — System 1: Fast Typed Decisions with Laya
 
-**Version:** 0.1  
-**Date:** 2026-09-24  
-**Status:** Draft. The spike (S0) is done; nothing is implemented in the stacks yet.
+**Version:** 0.4  
+**Date:** 2026-10-13  
+**Status:** S1, S2, the S3 infrastructure and S4 implemented (2026-10-13). S1: the service, incident routing, the decision log, the library and the CLI (§14). S2: operator intake and feedback, the Node-RED subflow, the dashboard, `GET /v1/sets`, per-question temperatures, the emu overlay and the harness tool definitions (§15). S3: site calibration, drift alerts, alert labels and a ranking gate; its four new sets fail on the base checkpoints (§16). S4: a fine-tuned `multilingual` that beats the base on every set, ready to publish to a repository p4n4 controls; the four sets are closer but still drafts (§17). Each section records where it departs from this draft. The Pi 5, native arm64 and real-site exit criteria are still open.
 
 ---
 
@@ -30,6 +30,10 @@ Evidence tags used throughout:
 11. [Phases](#11-phases)
 12. [Risks](#12-risks)
 13. [Open Questions](#13-open-questions)
+14. [S1 Implementation](#14-s1-implementation)
+15. [S2 Implementation](#15-s2-implementation)
+16. [S3 Implementation](#16-s3-implementation)
+17. [S4 Implementation](#17-s4-implementation)
 
 Appendices: [A. Reference Wrapper](#appendix-a-reference-wrapper) · [B. Image](#appendix-b-image) · [C. Question Sets v2](#appendix-c-question-sets-v2) · [D. Calling System 1](#appendix-d-calling-system-1) · [E. Method Notes](#appendix-e-method-notes)
 
@@ -501,7 +505,7 @@ A set is a versioned file in the ai stack at `config/system1/questions/<name>.js
 | `POST` | `/v1/sets/<name>` | Bearer | Runs a question set on `{"state": …}`. Adds `set` to the response and `abstain` to each answer |
 | `POST` | `/v1/systemone` | Bearer | laya's own endpoint for ad hoc questions (harness, evaluation), with the same limits |
 | `GET` | `/health` | None | Returns `{"status":"ok","loaded":["multilingual"],"device":"auto"}` |
-| `GET` | `/v1/sets` | Bearer | S2: lists sets with their versions and thresholds |
+| `GET` | `/v1/sets` | Bearer | Lists the sets the service loaded, with their versions, options, thresholds and temperatures (S2, §15.7) |
 
 Callers inside `p4n4-net` use `http://p4n4-system1:8000`. Errors are 400, 401, 404, 413, 422 or 500, with a `detail` message (Appendix D).
 
@@ -562,7 +566,7 @@ A Node-RED flow in the iot stack writes one point per answer to the `ai_events` 
 - **Tags:** `set`, `question`, `choice`, `caller`, `checkpoint`. Each must match `^[a-z0-9_-]{1,64}$`, or the point is dropped with a warning. This keeps series cardinality bounded by the menus.
 - **Fields:** `confidence` (float); `abstain` and `used` (bool); `set_version` and `latency_ms` (int); `id`, `revision`, `subject` and `state_sha256` (string).
 - **Privacy:** states aren't logged by default, because operator messages can contain personal data. `state_sha256` links a decision to an evaluation example.
-- **Feedback (S2):** `system1/feedback/<set>` carries `{id, question, expected}` from operator confirmations and corrections, and feeds the evaluation files (§10).
+- **Feedback (S2):** `system1/feedback/<set>` carries `{id, question, expected}` from operator confirmations and corrections, and feeds the evaluation files (§10). §15.4 has the shape that shipped.
 
 ---
 
@@ -732,7 +736,7 @@ The change:
   - dependencies in §3.1 and §3.2: F-0.1.2 → F-0.2.7 → F-0.2.2, F-0.2.3;
   - the endpoints in §8.5, the topics `system1/decisions/<set>` and `system1/feedback/<set>` in §8.6, and the variables in §8.7;
   - the §5.2 milestone text, which says "All six features" (line 580).
-- **`decisions/adr/ADR-003.md`:** "An encoder classifier for bounded decisions (System 1)". It records §5's rules and the rejected alternatives: an LLM with JSON output, `score` and `noul`, and stock `laya-serve`.
+- **`decisions/adr/ADR-004.md`:** "An encoder classifier for bounded decisions (System 1)" (ADR-003 is the dashboard's). It records §5's rules and the rejected alternatives: an LLM with JSON output, `score` and `noul`, and stock `laya-serve`.
 - **`decisions/ai-harness.md`:** `system1_decide` and `system1_eval` rows in the §4 tool table, tier R. H1 covers all R tools, so they join H1, or the first harness release after S2.
 
 ### 7.7 Harness
@@ -879,6 +883,8 @@ Upstream presents laya as "a fast base to specialise". It publishes a fine-tunin
   - Publish it in a repository or artifact store that p4n4 controls, pinned by commit and sha256, with a model card that lists the data sources and metrics.
   - It must beat the base checkpoint on the same held-out file, and pass the same regression suite and gates.
 
+S4 did this with a synthetic corpus and without the notebook or the dataset (§17).
+
 ---
 
 ## 11. Phases
@@ -886,10 +892,10 @@ Upstream presents laya as "a fast base to specialise". It publishes a fine-tunin
 | Phase | Use cases | Deliverables | Status |
 |-------|-----------|--------------|--------|
 | **S0: spike** | — | This document; the wrapper, image and Compose service; the v2 sets; the regression suite | Done; re-checked on laya 0.3.17 |
-| **S1: service and incident routing** | U1 | The image and its CI; the Compose services; the CLI; `incident-escalation` v2; the decision log; the docs | Next |
-| **S2: intake and tooling** | U2, U8, U9 | The intake workflow and feedback; the harness tools; the Node-RED subflow; the dashboard; `GET /v1/sets`; per-question temperatures; the emu overlay | — |
-| **S3: more sets** | U3–U7 | New sets with evaluation files; site calibration; drift alerts | — |
-| **S4: specialise** | Any | Fine-tuning, only if the evaluations call for it (§10.5) | — |
+| **S1: service and incident routing** | U1 | The image and its CI; the Compose services; the CLI; `incident-escalation` v2; the decision log; the docs | Implemented (§14); exit criteria open (§14.7) |
+| **S2: intake and tooling** | U2, U8, U9 | The intake workflow and feedback; the harness tools; the Node-RED subflow; the dashboard; `GET /v1/sets`; per-question temperatures; the emu overlay | Implemented (§15); exit criteria open (§15.11) |
+| **S3: more sets** | U3–U7 | New sets with evaluation files; site calibration; drift alerts | Calibration, drift alerts and U7 implemented; the U3–U6 sets fail their gates and move to S4 (§16) |
+| **S4: specialise** | Any | Fine-tuning, only if the evaluations call for it (§10.5) | Implemented (§17); the checkpoint waits for its push, and the exit needs a site file |
 
 ### 11.1 S1 scope
 
@@ -903,7 +909,7 @@ Upstream presents laya as "a fast base to specialise". It publishes a fine-tunin
   - `p4n4_lib/system1.py` and the `p4n4 ai system1` commands;
   - `SYSTEM1_API_KEY` in `ROTATABLE_KEYS`, with a rotation hook;
   - the n8n credential.
-- **Docs:** the ai-stack page, F-0.2.7 in the specs and ADR-003 (§7.6).
+- **Docs:** the ai-stack page, F-0.2.7 in the specs and ADR-004 (§7.6).
 
 ### 11.2 Exit criteria
 
@@ -947,20 +953,616 @@ Upstream presents laya as "a fast base to specialise". It publishes a fine-tunin
 
 1. **Pi 5 latency and memory.** What are p50 and p95 for `incident-triage` on a native Pi 5, and what timeout should n8n use? S1 measures them.
 2. **arm64 CI.** Are hosted arm64 runners available to the organisation, or does S1 need a self-hosted Pi?
-3. **n8n credentials.** Does `n8n import:credentials` encrypt plain `data` when it stores it (§7.3)?
-4. **Threshold metric.** Should each set threshold `confidence` or `answer_confidence` (§10.2)?
-5. **Per-language calibration.** Are `lang_temperatures` worth the extra step on multi-language sites (§10.3)?
-6. **The sha256 pin.** Should it live in `.env` next to the revision, or in a manifest built into the image?
-7. **Fields in the state.** On the 8 alerts, the alert alone did best, and a device name acted as a prior (§4.4). Is `{alert}` right for every site, or do some sites gain from a `device_type` in their evaluations?
+3. ~~**n8n credentials.** Does `n8n import:credentials` encrypt plain `data` when it stores it (§7.3)?~~ Yes (§14).
+4. **Threshold metric.** Should each set threshold `confidence` or `answer_confidence` (§10.2)? `incident-triage` v3 uses `confidence`; both fitted to the same held-out result on the generic file (§14).
+5. **Per-language calibration.** Are `lang_temperatures` worth the extra step on multi-language sites (§10.3)? Still open: S2 gates each language separately (§15.7), which shows when one language needs it, but the generic file is too small to fit one table per language.
+6. ~~**The sha256 pin.** Should it live in `.env` next to the revision, or in a manifest built into the image?~~ In the image, for every file (§14).
+7. **Fields in the state.** On the 8 alerts, the alert alone did best, and a device name acted as a prior (§4.4). Is `{alert}` right for every site, or do some sites gain from a `device_type` in their evaluations? For operator intake, the channel acted as a prior too, so `operator-intake` v3 takes `{text}` alone (§15.2).
 8. **Ollama next to System 1 on a Pi 5.** Which Ollama model sizes still fit alongside n8n and Letta (§8)?
 9. **Mirroring.** Should p4n4 keep a copy of the pinned model files, and where?
 10. **The dotenv linter.** Which linter replaces yamllint for `.env.example` (§7.1)?
 
 ---
 
+## 14. S1 Implementation
+
+S1 was built on 2026-10-12/13. This section records what shipped, what was measured while
+building it, and where it departs from the sections above. Measurements here were taken
+on the development host (x86-64, Docker 29, the service limited to 2 CPUs and 2 GiB),
+not the spike host.
+
+### 14.1 Where it lives
+
+| Repository | Files |
+|------------|-------|
+| `stacks/ai` | `system1/` (Dockerfile, `system1_app.py`, `pins.json`, `requirements.in`, `constraints.txt`, `requirements-{amd64,arm64}.txt`, `tests/test_service.py`); `config/system1/questions/incident-triage.json` and `.eval.jsonl`; the `system1` and `system1-pull` services; the `.env.example` block; `make system1-pull/-build/-lock/-test`; `.github/workflows/system1.yml`; `config/n8n/workflows/incident-escalation.json` v2 |
+| `stacks/iot` | The Node-RED tab **System 1 Decision Log** in `flows.json`; `INFLUXDB_BUCKET_AI_EVENTS` passed to Node-RED |
+| `lib` | `p4n4_lib/system1.py`; `SYSTEM1_API_KEY` in `ROTATABLE_KEYS` |
+| `cli` | `p4n4/commands/ai.py` (`p4n4 ai system1 …`); the key in `init`; the credential hook in `secret rotate` |
+| `docs` | The ai-stack and iot-stack pages, the CLI reference, specs F-0.2.7, ADR-004 |
+
+### 14.2 laya 0.4.6
+
+laya shipped 0.3.18 to 0.4.6 between 2026-09-24 and 2026-10-12, 0.4.6 on the morning S1
+was built. The Hub's `main` moved to `7b928d8` on 2026-10-03, but
+`multilingual/model.safetensors` kept its sha256, so the revision stays `aa8c91c`.
+
+- **Same answers.** With the same wrapper, checkpoint and sets, 0.3.17 and 0.4.6 gave
+  identical probabilities on all 62 evaluation requests and the 8 smoke alerts [measured].
+  The image pins 0.4.6. The other packages stay at the spike's versions (Appendix B),
+  used as constraints for the hashed locks.
+- **New surface, closed by the wrapper.** 0.4.x lets a caller set `max_len`,
+  `head_max_len`, `task`, `lang`, `lang_guess`, `min_confidence` and hooks per request,
+  and adds `/v1/systemone/batch`. Per-request budgets would bypass the 422s of §4.5. The
+  wrapper serves three routes (everything else is 404, including FastAPI's `/docs` and
+  `/openapi.json`), accepts only `state`, `questions` and `model` on `/v1/systemone`
+  (422 otherwise), and refuses to start with `LAYA_TOURNAMENT_GROUP`, `LAYA_JEV_STRICT`,
+  `LAYA_AUTO_TASK`, `LAYA_EXTRA_MODELS` or `LAYA_IDLE_UNLOAD_SECONDS` set.
+- **Other changes.** `/health` without a token returns only `{"status": "ok"}`. An
+  admission cap (`LAYA_MAX_CONCURRENT`, 16) answers 503 instead of queueing. Answers also
+  carry `x_jev_confidence`, which p4n4 ignores. laya now has opt-in revision pins and
+  `LAYA_SHA256_DIGESTS`; the wrapper keeps its own checks, so the contract doesn't depend
+  on them.
+
+### 14.3 The wrapper
+
+All five "To add in S1" items of Appendix A are in, plus:
+
+- **Hash pins** (open question 6): `pins.json`, built into the image, holds the sha256 of
+  every file the pull downloads (config, weights, tokenizer, encoder config) per
+  repository, revision and checkpoint. The pull and every start check them before
+  anything loads, and a revision the file doesn't list refuses to start. The weights'
+  hashes match the Hub's `lfs.oid` for both checkpoints.
+- **Set checks** at start-up: a positive integer `version`, `choice` questions only (rule
+  3), known keys only, thresholds in [0, 1], and `threshold_on`.
+- **`state_sha256`** in every set response (sha256 of the state as compact JSON with sorted
+  keys), so callers don't hash it themselves for the decision log.
+- **One JSON log line per request**: route, set and version, status, latency, input tokens
+  and the state's sha256, never the state.
+
+The regression suite (`make system1-test`, 43 tests, passing on amd64 [measured]) covers every
+fail-closed start, every status code, the chunked-body limit, the hardened container,
+calibration and chunking exactness, the log line, and every shipped set's gates.
+
+### 14.4 `incident-triage` v3
+
+Version 3, because the laya version changed (rule 10); the wording is v2's.
+
+- **At the spike's threshold of 0.5**, on the generic evaluation file (62 examples: 47
+  across the six causes, 15 `null`), it fails two gates: coverage 0.70, answered accuracy
+  0.82, confident-wrong rate 0.145 [measured]. `sensor_fault` attracts alerts with
+  "fault" in them: a drive fault and a ground fault went there at 0.86–0.88.
+- **Rewording doesn't fix it.** Three variants were tried. The best, with three
+  descriptions tightened, reached accuracy 0.92 and confident-wrong 0.065 at coverage
+  0.51, and was tuned on the same 62 examples, so its numbers are optimistic.
+- **Shipped:** the threshold `--fit-thresholds` proposed, 0.9 (held-out coverage 0.38,
+  confident-wrong 0.048), and `min_coverage` lowered to 0.25 for the generic file. The
+  accuracy and confident-wrong gates are unchanged. Result: coverage 0.28, answered
+  accuracy 1.00, confident-wrong 0.016 [measured]. The one confident miss is the
+  cold-room door alert (`electrical` at 0.95), which the workflow's rules route first.
+- **Sites refit both** on their own examples. Coverage is the price of a generic file, and
+  a site's history is what raises it.
+
+### 14.5 n8n and the end-to-end run
+
+**Credentials** (open question 3): `n8n import:credentials` encrypts plain `data`; the
+stored value starts with `U2FsdGVkX1`, OpenSSL's `Salted__` [measured, n8n 2.41.6]. An
+import into a running n8n applies from the next execution. `enable` imports into the
+running container, or with a one-off container when n8n is enabled but stopped, and
+skips n8n when it isn't enabled.
+
+**The MQTT node** (v1) publishes the whole item unless `sendInputData` is false, whatever
+`message` says. v2's three publish nodes set it.
+
+**End to end** with n8n 2.41.6, Mosquitto 2.0.22, InfluxDB 2.9, Node-RED 5.0 and the image
+on an isolated network [measured]:
+
+| Case | Escalation | Decision log |
+|------|------------|--------------|
+| Smoke in a cabinet | `routed_by: system1`, `likely_team: electrical`, `suggested: true` | Logged, written to `ai_events` |
+| "Status changed." | `on_call` | Logged (`unknown`, abstained) |
+| Emergency stop | `rule` → `safety`; System 1 not asked | None |
+| System 1 stopped | `on_call` (`ENOTFOUND`) | None |
+| System 1 paused | `on_call` after the 5 s timeout | None |
+| Wrong key | `on_call` (401) | None |
+| 30 alerts at once | All 30 escalated: 18 with suggestions, 12 with a 503 and no suggestion | 18 |
+| Bad decision messages (tag outside the menu, set mismatch) | — | Dropped with a warning |
+
+The 422 for an oversized state can't come from the workflow, because Normalise caps the
+alert at 500 characters; the service suite covers it.
+
+### 14.6 Departures from §7
+
+- **`.env.example`:** no `COMPOSE_PROFILES=` line. The stack already had a profile per
+  service, defaulting to `ollama`, so `system1` is a fourth.
+- **Compose:** `restart` follows `RESTART_POLICY`, like the other services.
+- **CLI:** `eval` records its runs in `config/system1/last-eval.json`, which `status`
+  shows. `enable --source-ai` copies default sets from a local checkout; otherwise they
+  come from the ai repository.
+- **ADR:** ADR-004, because ADR-003 is the dashboard's.
+
+### 14.7 Still open for the S1 exit
+
+- Pi 5 latency and memory (open question 1). Set requests took 220–300 ms here with 2
+  threads.
+- A native arm64 run: the CI workflow builds and tests on `ubuntu-24.04-arm` (open
+  question 2).
+- The `incident-triage` gates on at least 50 examples from a real site.
+- The first image release: a `system1-v0.1.0` tag publishes
+  `ghcr.io/raisga/p4n4-system1:0.1.0`, the default `SYSTEM1_IMAGE`. Until then, build it
+  with `make system1-build` and set `SYSTEM1_IMAGE=p4n4-system1:dev`.
+
+## 15. S2 Implementation
+
+S2 was built on 2026-10-13, on the S1 code. As in §14, measurements are from the
+development host, with the service limited to 2 CPUs and 2 GiB.
+
+### 15.1 Where it lives
+
+| Repository | Files |
+|------------|-------|
+| `stacks/ai` | `config/system1/questions/operator-intake.json` and `.eval.jsonl`; `config/n8n/workflows/operator-intake.json`; `GET /v1/sets` and per-question temperatures in `system1/system1_app.py`, with their tests; `OPERATOR_INTAKE_TOKEN` in `.env.example` |
+| `stacks/iot` | In `flows.json`: the **p4n4-system1** subflow, feedback logging on the **System 1 Decision Log** tab, and an example; `config/grafana/provisioning/dashboards/json/system1.json`; `SYSTEM1_API_KEY` in `.env.example` and for Node-RED |
+| `lib` | `p4n4_lib/system1.py`: per-language metrics and gates, `temperatures` in sets, `fit_question_temperatures`, `feedback_payload`, `feedback_examples`; `OPERATOR_INTAKE_TOKEN` in `ROTATABLE_KEYS` |
+| `cli` | `p4n4 ai system1 feedback`; per-language lines and per-question temperatures in `eval`; served versions in `status`; both n8n credentials in `enable` and `secret rotate`; the key in the iot layer |
+| `tools/emu` | A fixed size for `system1`, which also runs native on an emulated board |
+| `docs` | This section, the ai-stack and iot-stack pages, the CLI reference, the emulator page, specs F-0.2.7, ai-harness §4.3 |
+
+### 15.2 `operator-intake` v3
+
+The v2 set of Appendix C fails its gates on a generic English and Spanish file of 64
+examples (50 requests, 14 messages that ask for nothing). At its own thresholds, with its
+state `{text, channel}` [measured]:
+
+| Question | Coverage | Answered accuracy | Confident-wrong | What went wrong |
+|----------|---------:|------------------:|----------------:|-----------------|
+| `small_talk` | 0.31 | 0.95 | 0.016 | Answered a third of the messages, and called 1 of the 14 non-requests small talk. A yes/no question has no `null` examples, so it can't meet the size rule |
+| `intent` | 0.70 | 0.94 | 0.172 | Greetings and chat went to `status_request` at up to 0.93 |
+| `asset` | 0.83 | 1.00 | 0.094 | "The pump", with no number, went to `pump-1` at up to 1.00 |
+
+Three changes, one measured at a time:
+- **A concrete option for "nothing to do"**, as `unknown` is for `incident-triage`:
+  `intent.other` ("a greeting, thanks or chat, nothing to do") and `asset.pump` ("a pump,
+  without saying which one (la bomba, una bomba)"). Both are `no_answer_keys`: the
+  workflow asks instead. With them, 13 of the 14 non-requests landed on `other` or
+  abstained ("Who's bringing lunch today?" still went to `status_request` at 0.87), and
+  every unnumbered pump abstained. Of four wordings for `pump`, the one above did best. One
+  rewording of `intent` didn't help and was dropped; no more were tried, so that the
+  wording isn't fitted to the file that gates it.
+- **`small_talk` is dropped.** It never fired usefully, and with two questions a request
+  is one forward pass instead of two. Rules filter small talk (§15.3), and `other`
+  catches what gets past them.
+- **The state is `{text}`.** With the channel in the state (`telegram`, `whatsapp`,
+  `web`), `intent` covered 0.46 of the requests with a confident-wrong rate of 0.047; with
+  the text alone, 0.70 and 0.031 [measured]. The channel acted as a prior, like the device
+  name in §4.4 (rule 6).
+
+The shipped thresholds clear the highest confident miss in each language:
+- `intent` 0.92, above a miss at 0.91;
+- `asset` 0.8, above a miss at 0.74, with a margin, because a wrong asset sends someone
+  to the wrong machine.
+
+As for `incident-triage` (§14.4), the coverage gate follows: `intent`'s `min_coverage` is
+0.4, and `asset` keeps 0.6. A miss costs a question with buttons, not a wrong action,
+because every draft needs the operator's confirmation. On the shipped file [measured]:
+
+| Question | Language | Coverage | Answered accuracy | Confident-wrong |
+|----------|----------|---------:|------------------:|----------------:|
+| `intent` | all | 0.54 | 1.00 | 0.000 |
+| | en | 0.64 | 1.00 | 0.000 |
+| | es | 0.44 | 1.00 | 0.000 |
+| `asset` | all | 0.87 | 1.00 | 0.000 |
+| | en | 0.96 | 1.00 | 0.000 |
+| | es | 0.76 | 1.00 | 0.000 |
+
+At 0.9, `intent` covered 0.60 but answered "¿La bomba está encendida?" with
+`report_fault` at 0.91, which fails the Spanish gate (0.032). The file is synthetic; a
+site renames the assets, adds its own examples, and refits.
+
+### 15.3 Operator Intake (n8n)
+
+`config/n8n/workflows/operator-intake.json` follows §6.6.
+
+- **In.** A channel adapter publishes `{conversation, user, text}` on
+  `operator/messages/<channel>`, or POSTs the same with a `channel` to the webhook
+  `/webhook/operator-intake`. The webhook checks a Header Auth credential, **p4n4
+  Operator Intake** (`Authorization: Bearer <OPERATOR_INTAKE_TOKEN>`), because a request
+  through it can create and confirm requests. A button press comes back as
+  `{conversation, button}`.
+- **Rules first.** Empty messages and stickers get nothing. A message of at most 40
+  characters made only of greetings, thanks and filler words, from an English and a
+  Spanish list, gets a canned reply and never reaches System 1. The replies are in the
+  operator's language: the adapter's `lang`, else a guess from Spanish stopwords.
+- **System 1.** `POST /v1/sets/operator-intake` with `{text}`, a 5 s timeout and the
+  error output. An answer fills a field only when it clears its threshold and isn't a
+  no-answer key; `asset.pump` narrows the asset buttons to the pumps. Every answered
+  request is logged on `system1/decisions/operator-intake`.
+- **Clarify and confirm.** The reply on `operator/replies/<channel>` asks for the first
+  missing field with buttons, then asks to confirm, with buttons to change either field
+  or cancel. Nothing happens before the confirmation. Then the request goes to
+  `operator/requests/<intent>`, with which fields System 1 suggested and the operator
+  kept, and one feedback message per answered question goes to
+  `system1/feedback/operator-intake`.
+- **Drafts** wait in the workflow's static data for 30 minutes. n8n keeps static data for
+  production executions only and saves it when an execution ends, so two messages
+  processed at the same instant can lose a draft. That's acceptable at chat rates.
+- **The site config** (assets and their labels, greetings, replies, the draft lifetime,
+  `FEEDBACK_STATES`) is one block in the **Intake Rules** node, handed on to the
+  **Draft** node.
+
+### 15.4 Feedback
+
+A feedback message is §6.7's `{id, question, expected}` plus what the dashboard needs
+without a join: `{id, ts, set, set_version, caller, question, expected, choice, abstain,
+lang}`. `id` is the decision's. `p4n4_lib.system1.feedback_payload` builds one.
+
+- **Node-RED** writes one `system1_feedback` point per message to `ai_events`. Its tags
+  are `set`, `question`, `expected`, `choice` and `caller`, held to the same
+  `^[a-z0-9_-]{1,64}$` as decisions; its fields are `agreed` (answered, not abstained, and
+  kept), `abstain`, `set_version` and `id`.
+- **Examples, opt-in.** With `FEEDBACK_STATES = true` in Intake Rules, each message also
+  carries `state`. Node-RED then appends it to `/data/system1/feedback/<set>.jsonl` in its
+  own volume, never to InfluxDB. `p4n4 ai system1 feedback <set>` turns those into
+  evaluation lines (`source: feedback`, one per decision, with every confirmed question
+  and its `lang`), printing them or appending the new ones with `--append`. No-answer keys
+  are dropped. Redact names before appending (§9).
+
+### 15.5 The `p4n4-system1` subflow
+
+It's in the Node-RED palette under **p4n4 AI**, and it follows F-0.2.2's contract.
+
+- **In:** `msg.payload`, the state; `msg.set`, or the `SET` property (default
+  `incident-triage`); optionally `msg.subject`.
+- **Out:** the response in `msg.payload`, and `msg.system1 = {id, set, version, used}`.
+- **Failures:** on any failure (no key, a bad or unknown set, no state, a 4xx, a refused
+  connection, a timeout after `TIMEOUT_MS`, default 5000) it sets `msg.error`, sends a
+  `null` payload and never throws.
+- **Decision log:** it publishes the decision log itself, so a flow can't forget to.
+  `used` there means an answer wasn't abstained, since the subflow can't know what the
+  flow does next.
+- **The key:** `SYSTEM1_API_KEY` is read from Node-RED's environment and never stored
+  in `flows.json`.
+- **Example:** the System 1 Decision Log tab has a one-click example.
+
+### 15.6 The dashboard
+
+Grafana's **System 1** dashboard (`p4n4-system1`, folder MING) reads `ai_events`, with a
+set and a question picker. It has:
+- stats for decisions, the abstention rate, the used rate, agreement with people (kept
+  answers ÷ answered ones confirmed or corrected), latency p95 and the set version;
+- answers per option over time, and the abstention rate over time;
+- the confidence distribution;
+- latency p50 and p95;
+- a drift table, with each option's share and the abstention rate in the last 7 days
+  against the 28 days before, red past 20 points (§10.4);
+- the feedback confusion table, confirmed against answered.
+
+The drift alert rules stay in S3.
+
+### 15.7 The wrapper and the library
+
+- **`GET /v1/sets`** (Bearer) returns `{checkpoint, revision, sets: [{name, version,
+  threshold_on, questions: {q: {options, threshold, temperature}}}]}`. `p4n4 ai system1
+  status` uses it to flag sets whose files changed since the service started.
+- **Per-question temperatures.** A set may carry `"temperatures": {"<question>": T}`,
+  with T in [0.5, 5]. The wrapper takes laya's answer, undoes the bucket temperature T₀
+  laya applied, and applies T: pᵢ′ ∝ pᵢ^(T₀/T), from the 4-decimal probabilities laya
+  returns. It then recomputes `confidence` and `answer_confidence`. The choice never
+  changes.
+  - The rounding costs a few 10⁻⁴. `fit_question_temperatures` fits from the same
+    rounded probabilities, so the fitted T is the applied one.
+  - Every set answer now reports the `temperature` applied, and the fits undo that
+    instead of guessing from the site file.
+  - A set with temperatures is refused at start-up on a checkpoint with a binning map,
+    whose `answer_confidence` re-tempering can't reproduce. The shipped checkpoints have
+    none.
+  - `eval --fit-calibration` proposes per-question temperatures next to the bucket ones.
+- **Languages.** An evaluation line may carry `lang`. When a set's file has two or more
+  languages, `eval` reports each one and every gate must pass in each (the S2 exit
+  criterion), as failures such as `intent [es]: …`. Lines without `lang` count only in
+  the totals.
+
+### 15.8 The emu overlay
+
+`render_overlay` already took the stack's services (`docker compose config --services`).
+S2 adds a fixed size for `system1`: 2 GiB and 2 CPUs, capped at the board.
+- `budget_scale` shrinks the other services into what that leaves.
+- `system1` keeps the host's platform when the board is emulated, because PyTorch
+  segfaults under QEMU (§4.7).
+- `p4n4-emu up` warns that it isn't recommended where it takes more than half the memory
+  (`rpi4`, 57%), and that it can't run where it doesn't fit (`mcu-class`).
+- It is never a default service, so a stack without it gets no override for it.
+
+### 15.9 Harness tools
+
+There is no harness code yet (ai-harness H1). S2 adds the definitions of `system1_decide`
+and `system1_eval` to the tool table, both tier R and backed by `p4n4_lib.system1`, so
+the first harness release implements a fixed contract. As §7.7 says, they don't publish
+to the decision log.
+
+### 15.10 End to end
+
+On an isolated network with n8n 2.41.6, Mosquitto 2.0, InfluxDB 2.9, Node-RED 5.0,
+Grafana 13.0 and the dev image, with the aliases the flows expect [measured]:
+
+| Check | Result |
+|-------|--------|
+| Operator Intake: greetings, confident and corrected drafts, unnumbered pumps, cancel, Spanish, the webhook with no, a wrong and the right token, invalid messages | 18 of 18 |
+| System 1 stopped, paused past the 5 s timeout, called with a wrong key | The operator gets buttons in every case (after 0.5 s and 5.3 s for the first two), and no decision is logged |
+| The subflow: answers, its decision log, `msg.set`, an unknown or bad set, no state, a 422, the service down, a timeout | 9 of 9 (the timeout after 5.4 s) |
+| Feedback points, and an opted-in example kept in Node-RED's volume; a bad tag and a `..` set dropped with a warning | As designed |
+| Every dashboard query through Grafana's API, with synthetic history for the drift table | All return data; the drift table flags the planted shift (−44, +21, +23 points) |
+| Incident Escalation v2 next to it | Still escalates with a suggestion |
+
+The regression suite (49 tests, 6.5 min) passes on the dev image, with both shipped sets
+through the set route. `p4n4 ai system1 feedback` was tested with Docker replaced by
+fakes, not against a running project.
+
+### 15.11 Still open
+
+- **The S2 exit:** the intake gates on a site's file, in every language the site uses.
+  The subflow contract and the harness table are done.
+- **Per-language temperatures** (open question 5).
+- **Drift alert rules:** S3 (§10.4).
+- **The S1 exit criteria** of §14.7.
+
+## 16. S3 Implementation
+
+S3 was built on 2026-10-13. Its new sets didn't pass, so it shipped the infrastructure the
+phase calls for, and kept the sets as drafts for S4.
+
+### 16.1 The new sets don't ship
+
+Four sets were drafted, each with a generic synthetic file. They live in
+`stacks/ai/system1/drafts/`, which the service never loads. With up to three wordings per
+set, measured the way §15.2 measured `operator-intake` [measured]:
+
+| Set | Use case | Examples | `multilingual` (the default) | `english` |
+|-----|----------|---------:|------------------------------|-----------|
+| `log-triage` | U5 | 57 | At 0.95: coverage 0.29, confident-wrong 0.018. Thresholds fitted on two thirds fail on the held-out third in 2 of 3 splits (confident-wrong up to 0.158) | At 0.9: coverage 0.42, confident-wrong 0.000 |
+| `device-class` | U4 | 61 | At 0.9: coverage 0.27, confident-wrong 0.016. Fails held out in 1 of 3 splits (0.143) | At 0.8: coverage 0.45, confident-wrong 0.000 |
+| `system2-router` | U3 | 46 | Confident-wrong under 0.03 only from 0.9, at coverage 0.11; gibberish went to `ollama` at up to 0.86 | Abstains on almost everything |
+| `anomaly-screen` | U6 | 40 | Ranking AUC 0.71 against a gate of 0.8 | AUC 0.70–0.76 |
+
+- **What failed.** On the base checkpoints the gates either fail, or pass only at a threshold
+  fitted on the very file that judges it. That is §10.5's condition for S4, fine-tuning,
+  and the drafts are its starting data. They hold this repository's labels, some of them
+  debatable (an `OOMKilled` exit labelled `memory`, not `crash`).
+- **Why `english` isn't the answer.** `english` does much better on `log-triage` and
+  `device-class`, but the service runs one checkpoint, and `operator-intake` needs
+  `multilingual` for Spanish. Two resident checkpoints would double the 2 GiB budget (§8).
+  A site that only speaks English can serve `english` and evaluate these drafts on its own
+  data.
+- **`log-triage` assumes a rule first.** The caller passes a line on only when it looks like
+  an error (rule 2), so routine lines such as "Started flows" never reach System 1; the
+  file holds what such a filter lets through. Without the filter, routine lines went to
+  `network` at up to 0.98.
+- **Consumers.** None of the U3–U6 consumers was built, since they would have nothing to
+  call.
+
+### 16.2 A ranking gate
+
+U6 is a ranking signal, never a gate (§3), so coverage and accuracy don't judge it. A set
+can now name a question in `eval.rank`, with its positive option:
+`"rank": {"worth": "explain"}`. That question is then gated on the AUC of the positive
+option's probability (`min_auc`, default 0.8 [estimate]), overall and per language. It
+needs positive and negative examples, but no `null` ones, and `--fit-thresholds` skips it.
+
+### 16.3 Site calibration
+
+- **The file.** It lives in `config/system1/calibration/` and is mounted read-only at
+  `/config/calibration`. `SYSTEM1_CALIBRATION` names it, for example `site.json`; an
+  absolute path still works.
+- **Writing it.** `p4n4 ai system1 eval --fit-calibration --save-calibration` fits the
+  bucket temperatures over every set, writes `site.json`, sets the variable, and says what
+  comes next. Every set's confidences change, so restart `system1`, evaluate every set,
+  refit the thresholds that fail, and bump every version (rule 10).
+- **One set at a time.** `--save-calibration` refuses to run on a single set, because the
+  buckets are shared.
+
+### 16.4 Drift alerts
+
+`stacks/iot/config/grafana/provisioning/alerting/system1.yml` provisions three Grafana
+rules in the folder "System 1". Each Flux query returns one value per set and question,
+so each rule alerts separately for every set and question:
+
+| Rule | Value | Fires when |
+|------|-------|------------|
+| System 1 abstention rate doubled | Abstention rate of the last 7 days ÷ that of the 28 days before (at least 0.05) | > 2 |
+| System 1 answer mix moved | The largest move of any option's share, abstentions included, in points | > 20 |
+| System 1 latency p95 over half the timeout | p95 of `latency_ms` over 7 days | > 2,500 ms |
+
+- **Data and timing.** Each rule needs 30 decisions in both periods, and treats no data as
+  OK. They run every 15 minutes [estimate].
+- **Routing.** They send to the contact point **p4n4 System 1 drift** through
+  `notification_settings`, so a site's own notification policy tree is left as it is. The
+  contact point is a webhook to n8n's **System 1 Drift** workflow, which publishes each
+  alert, firing or resolved, on `system1/drift/<set>`. `SYSTEM1_ALERT_TOKEN`, one value in
+  both layers, authenticates the webhook through n8n's **p4n4 System 1 Alerts** credential.
+- **Flux in alerting.** Grafana's alerting reads the results as time series. A plain
+  number per series came back as no data, and a Reduce step dropped it. So each query ends
+  by turning its value into one point at `now()`, which Reduce then takes.
+
+**The exit criterion, measured.** A decision log with a shifted mix was replayed through
+MQTT and the real Node-RED tab: 300 decisions, back-dated across 35 days. The last 7 days
+had 30 % abstentions against 10 %, option `a` at 30 % against 70 %, and 3 s latency. A
+second set with an unchanged mix was replayed beside it. With the rules running every
+10 s, all three fired for the shifted set, and n8n published them on
+`system1/drift/replay-shift` with their summaries: 3.0×, 32 points, 3,045 ms. The steady
+set stayed Normal on all three, at 1.3×, 16 points and 236 ms. The webhook answered 403
+without the token and with a wrong one.
+
+### 16.5 U7: labels for past alerts
+
+`p4n4 ai system1 label <set> --input events.jsonl` runs a set on past events, one line each
+as `{ts, state, subject}`, and prints the labels per question. With `--write`, it writes
+the answered ones to `ai_events` as `system1_label` points:
+- at the event's own time;
+- tagged with set, question, choice and caller;
+- with fields for confidence, set version, subject and the state's sha256.
+
+Abstentions and no-answer keys stay unlabelled. `incident-triage` is the set this was made
+for. The write runs `influx write` inside the iot layer's InfluxDB container, with the token
+from that container's environment. The System 1 dashboard shows the labels as its **Labels**
+annotations. That was checked against InfluxDB 2.9 and Grafana 13.0: two written labels came
+back as "cause: electrical (cab-3)" and "cause: connectivity (gw-01)".
+
+### 16.6 Still open
+
+- **The S3 exit, for sets:** each new set passes its gates. S4 brought them close, but not
+  held out (§17.4).
+- **The drift criterion is met** (§16.4).
+- **The S1 and S2 exit criteria** of §14.7 and §15.11.
+
+## 17. S4 Implementation
+
+S4 was built on 2026-10-13. The base checkpoints were the limit for the four S3 drafts
+(§16.1), which is §10.5's condition. So `multilingual` was fine-tuned for every set at once,
+because the service runs one checkpoint. The fine-tuned checkpoint is ready to publish, but
+it isn't served by default yet: it waits for the push to a repository p4n4 controls (§17.5).
+
+### 17.1 Where it lives
+
+| Repository | Files |
+|------------|-------|
+| `stacks/ai` | `system1/train/`: `corpus.py`, `train.py`, `compare.py`, `card.py`, `pin.py` and their tests; `make system1-train`; `SYSTEM1_REPO` in `docker-compose.yml` and `.env.example`; `operator-intake` v4; the router and anomaly drafts grown to 52 examples each |
+| `cli` | `p4n4 ai system1 status` names the repository when it isn't the default |
+| `docs` | This section, the ai-stack page, specs F-0.2.7 |
+
+- **`corpus.py`** writes the training corpus (§17.2).
+- **`train.py`** runs `laya.train.finetune` in the `p4n4-system1` image. It first checks the
+  base files against `pins.json`, then writes the files the wrapper serves under
+  `multilingual/` and a manifest, `p4n4-train.json`: base, versions, recipe, the corpus's
+  sha256 and counts, losses, temperatures and every file's sha256.
+- **`compare.py`** asks a running service about every example of every set, drafts
+  included. Per question it records the gates at the set's thresholds, the lowest threshold
+  where every gate holds, the highest coverage where accuracy and confident-wrong hold, and
+  the held-out check of `fit_thresholds` on three splits.
+- **`card.py`** writes the model card from the manifest and two `compare.py` runs.
+- **`pin.py`** adds a pushed revision's hashes to `system1/pins.json`, from the local files,
+  never from the hub, and refuses if they differ from the manifest.
+
+The wrapper needed no change: it already took `SYSTEM1_REPO`, and pins are keyed by
+repository and revision. The fine-tuned files were served through it from a local Hugging
+Face cache under a test repository and revision, with their own pins, and it checked every
+hash at start-up.
+
+### 17.2 The corpus
+
+- **Generic and synthetic.** Templates per set write 2,421 examples (sha256 `7f37c396…`):
+  incident triage 450, operator intake 665 (English 335, Spanish 330), device class 430,
+  log triage 375, the router 202 and the anomaly screen 299. Each example carries its set's
+  own questions, so the checkpoint learns the menus it serves.
+- **No site or personal data, and nothing from upstream.** There is no site file yet, and
+  §10.5's licence check for the notebook and `LocalLLaMA/typed-decisions` is avoided by not
+  using either. Only laya's Apache-2.0 trainer and the base checkpoint are.
+- **No answer is an option.** `laya.train` skips rows whose answer is `null`. A `null` in an
+  evaluation file becomes the set's first no-answer key in the corpus: `unknown`, `other`,
+  or `pump` for an asset.
+- **Every evaluation file is held out.** A generated example that equals an evaluation
+  example, or shares 70 % of its words with one (Jaccard), is dropped: 64 were. A test
+  checks it.
+- **It is deterministic** for its seed, and the manifest records its sha256.
+
+### 17.3 Training
+
+`laya.train` 0.4.6 on this host's CPU (8 cores, no GPU), in the image, limited to 11 GiB
+(peak about 7 GiB). An effective batch of 16 (8 × 2), options shuffled so that no position
+is learnt, gradient checkpointing, and 10 % of the corpus kept back for laya's temperature
+fit.
+
+| Run | Corpus | Epochs | Time | Loss by epoch | Accuracy on the calibration slice |
+|-----|--------|-------:|-----:|---------------|-----------------------------------|
+| `ft1` | 2,306 examples | 3 | 157 min | 0.47, 0.35, 0.12 | 0.69 → 0.99 |
+| `ft2` | 2,421 examples | 2 | 111 min | 0.58, 0.28 | 0.67 → 0.99 |
+
+The calibration slice comes from the same templates, so it says little. What decides is
+§17.4.
+- **`ft1` was overconfident.** Its mean confidence went from 0.83 to 0.99. On intake, it
+  answered every answerable message correctly, but gave 2 of the 14 messages that need no
+  action a request type, above 0.92, so `operator-intake` v3 failed its confident-wrong
+  gate.
+- **`ft2`** trained for 2 epochs, and the corpus gained 112 intake messages that look like
+  requests and aren't: news about a machine, chat that names one, questions about something
+  else. These were chosen by category, not by the evaluation file's wording.
+
+### 17.4 Results
+
+On every set's held-out file, with the same service and pins, measured by `compare.py`
+[measured]. "Coverage" is at the set's thresholds; "held out" counts the splits of three
+whose third, not used to fit the threshold, keeps every gate.
+
+| Set | Examples | Base | `ft1` | `ft2` |
+|-----|---------:|------|-------|-------|
+| `incident-triage` v3 | 62 | Passes; coverage 0.28; held out 0/3 | Passes; coverage 0.89; 2/3 | Passes; coverage 0.94; 3/3 |
+| `operator-intake` v4, intent | 64 | Passes; coverage 0.48 (en 0.52, es 0.44); 1/3 | Fails at 0.92 (v3) | Passes; coverage 0.96 (en 1.00, es 0.92); 2/3 |
+| `operator-intake` v4, asset | 64 | Passes; coverage 0.87; 0/3 | Passes; 1.00; 3/3 | Passes; coverage 1.00; 3/3 |
+| `device-class` (draft) | 61 | Accuracy 0.76 | Coverage 0.96 from 0.65; 1/3 | Coverage 0.98 at any threshold; 1/3 |
+| `log-triage` (draft) | 57 | Accuracy 0.83 | Coverage 0.82 from 0.95; 1/3 | Coverage 0.73 from 0.97; 1/3 |
+| `system2-router` (draft) | 52 | Accuracy 0.56 | Coverage 0.90 from 0.84; 0/3 | Coverage 0.95 from 0.85; 1/3 |
+| `anomaly-screen` (draft) | 52 | AUC 0.67 | AUC 0.80 | AUC 0.83 |
+
+For the drafts, coverage is the highest at which accuracy and confident-wrong hold, from the
+lowest threshold where every gate does. Latency didn't change: same model, same sequence
+lengths.
+- **`ft2` is the S4 checkpoint.** It beats the base on all three shipped questions, in both
+  languages, with no confident miss on intake.
+- **`operator-intake` v4 raises the intent threshold from 0.92 to 0.95.** At 0.92, `ft2`
+  sent "The weather is terrible today." to `report_fault` at 0.941. English has 33 examples,
+  so that one miss is a confident-wrong rate of 0.030, at the gate. The value was chosen
+  after seeing that miss, on the file that judges it, so the 2/3 held out is the honest
+  figure. The base passes at 0.95 too, with intent coverage 0.54 → 0.48 and no confident
+  miss, so v4 holds whichever checkpoint is served (rule 10).
+- **The drafts still don't ship.** On the whole file, `ft2` passes every gate of the three
+  thresholded drafts, at a threshold fitted on that file. Held out, they pass in only 1 of 3
+  splits: a third is about 18 examples, so one confident miss is already above 0.03. Their
+  misses are scattered, not one pattern: `level` for `flow_pressure`, `letta` for `none`,
+  five different confusions among the log categories. The anomaly screen passes its AUC
+  gate, on 52 windows the corpus's author also wrote. What the drafts need next is
+  examples, best a site's own, not another run.
+- **Same author.** One person wrote the templates and the evaluation files. These results
+  overstate how well the checkpoint does on a real site's wording, and the S4 exit asks for
+  a site file.
+
+### 17.5 Publishing
+
+The checkpoint goes to a Hugging Face repository p4n4 controls, never to upstream's, and is
+pinned like the base (§9). A person pushes it; nothing here does.
+1. `make system1-train` (or the files kept from this run) leaves the repository in
+   `system1/train/out/checkpoint/`: `multilingual/`, `README.md` (the model card),
+   `p4n4-train.json` and `train_report.json`.
+2. Create the repository and push that folder. Note the commit's 40-character sha.
+3. `python system1/train/pin.py <owner>/<name> <sha> system1/train/out/checkpoint` adds the
+   pins. Rebuild the image: the pins are part of it.
+4. Set `SYSTEM1_REPO` and `SYSTEM1_REVISION`, run `system1-pull`, restart `system1`, and
+   run `p4n4 ai system1 eval` on every set. Bump every set's version (rule 10):
+   `incident-triage` v4, `operator-intake` v5. `status` then names the repository.
+5. To make it p4n4's default, change both defaults in `.env.example` and
+   `docker-compose.yml` in the same change.
+
+### 17.6 Departures from §10.5
+
+- **No site data.** §10.5 trains on site evaluation files and feedback. There are none, so
+  the corpus is synthetic and every generic evaluation file stays held out.
+- **No upstream notebook or dataset.** The trainer is laya's own, `laya.train`, in the
+  release the image pins.
+- **Trained on the workstation's CPU,** not a GPU runner: about 2 hours, within the image's
+  locked dependencies.
+
+### 17.7 Still open
+
+- **The S4 exit:** a fine-tuned checkpoint beats the base on a held-out *site* file, with
+  the same pins. It beats the base on every generic file; the site file doesn't exist, and
+  the pins wait for the push (§17.5).
+- **The S3 exit, for sets:** the four drafts need held-out evidence (§17.4).
+- **`english` isn't fine-tuned.** Nothing needs it while `multilingual` serves every set.
+- **The S1 and S2 exit criteria** of §14.7 and §15.11.
+
+---
+
 ## Appendix A. Reference Wrapper
 
-This is `system1_app.py` exactly as tested in §4, on laya 0.3.11 and 0.3.17. It is configured through environment variables:
+This is `system1_app.py` exactly as tested in §4, on laya 0.3.11 and 0.3.17. The S1 wrapper, with the additions listed below and the closes for laya 0.4.x (§14), is `stacks/ai/system1/system1_app.py`. It is configured through environment variables:
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
@@ -1350,6 +1952,9 @@ uvicorn==0.53.0
 
 ## Appendix C. Question Sets v2
 
+> `incident-triage` ships as v3 (§14.4) and `operator-intake` as v3 (§15.2), which drops
+> `small_talk` and adds the `other` and `pump` options. The v2 sets below are the spike's.
+
 `config/system1/questions/incident-triage.json`:
 
 ```json
@@ -1595,8 +2200,42 @@ It prints `connectivity 1.0 use` [measured].
 | 422 | `/v1/systemone` | `question 'q': unknown type 'rank'; use one of ['choice', 'noul', 'score']` | laya's own question check |
 | 422 | `/v1/systemone` | `question 'q': no 'instructions'; add the text the model should answer` | laya's own question check |
 | 500 | Both | `inference failed` | Any other error; laya hides the details [source] |
+| 404 | Any other route | `not found` | S1: `/v1/systemone/batch`, `/docs`, `/openapi.json` and any route but the three served |
+| 422 | `/v1/systemone` | `system1 accepts only ['model', 'questions', 'state']; unsupported fields: [...]` | S1: per-request controls of laya 0.4.x (`max_len`, `head_max_len`, `task`, `lang`, `lang_guess`, `min_confidence`, hooks) |
+| 503 | Both | `server busy, try again later` | laya ≥ 0.4: more than `LAYA_MAX_CONCURRENT` (16) requests at once |
 
 Sets are checked against the budgets at start-up, so a question's own 422s can only come from `/v1/systemone`.
+
+**Listing the sets (S2).** `GET /v1/sets` with the same bearer token returns what the
+service loaded at start-up (§15.7). Since S2, every set answer also carries the
+`temperature` it was tempered with: the set's own for that question, else laya's bucket
+temperature (1.0 for the shipped checkpoints without a site file).
+
+```json
+{
+  "checkpoint": "multilingual",
+  "revision": "aa8c91ca088e",
+  "sets": [
+    {
+      "name": "operator-intake",
+      "version": 3,
+      "threshold_on": "confidence",
+      "questions": {
+        "intent": {
+          "options": ["report_fault", "status_request", "maintenance_request", "other"],
+          "threshold": 0.92,
+          "temperature": 1.0
+        },
+        "asset": {
+          "options": ["pump-1", "pump-2", "pump-3", "compressor-1", "pump", "none"],
+          "threshold": 0.8,
+          "temperature": 1.0
+        }
+      }
+    }
+  ]
+}
+```
 
 ---
 
@@ -1617,4 +2256,4 @@ Sets are checked against the budgets at start-up, so a question's own 422s can o
 
 ---
 
-*Draft for discussion. Once agreed, the design parts move to `raisga/p4n4-docs` (specs F-0.2.7 and ADR-003).*
+*The design parts are in [specs.md](specs.md) F-0.2.7 and [ADR-004](adr/ADR-004.md).*

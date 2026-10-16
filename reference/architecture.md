@@ -35,8 +35,8 @@ raisga/
 └── p4n4                    ← umbrella (monorepo with submodules)
     ├── stacks/
     │   ├── iot             ← p4n4-iot: Mosquitto · Node-RED · InfluxDB · Grafana
-    │   ├── ai              ← p4n4-ai: Ollama · Letta · n8n
-    │   └── edge            ← p4n4-edge: inference runner (Edge Impulse · ONNX)
+    │   ├── ai              ← p4n4-ai: Ollama · Letta · n8n · System 1 · inference runner (Edge Impulse · ONNX)
+    │   └── extras          ← p4n4-extras: optional services, none by default (formerly p4n4-edge)
     ├── lib                 ← p4n4-lib: shared library (stacks ↔ clients)
     ├── cli                 ← p4n4-cli: Python CLI (published to PyPI as `p4n4`)
     ├── api                 ← p4n4-api: REST API gateway
@@ -66,8 +66,8 @@ raisga/
 | `.github` | — | org meta | — | — | Org profile README, shared Actions, issue templates |
 | `p4n4` | — | meta / monorepo | — | — | Umbrella: architecture, ADRs, all sub-repos as submodules |
 | `p4n4-iot` | `stacks/iot` | stack | ✓ | — | Docker Compose IoT stack; owns `p4n4-net` bridge |
-| `p4n4-ai` | `stacks/ai` | stack | ✓ | — | Docker Compose GenAI stack; attaches to `p4n4-net` |
-| `p4n4-edge` | `stacks/edge` | stack | ✓ | — | Docker Compose inference stack (Edge Impulse / ONNX); attaches to `p4n4-net` |
+| `p4n4-ai` | `stacks/ai` | stack | ✓ | — | Docker Compose AI stack: GenAI and the edge inference runner (Edge Impulse / ONNX, profile `ei-runner`); attaches to `p4n4-net` |
+| `p4n4-extras` | `stacks/extras` | stack | ✓ | — | Optional services outside the core, one directory per extra, none enabled by default; attaches to `p4n4-net`. Formerly `p4n4-edge` ([ADR-005](../decisions/adr/ADR-005.md)) |
 | `p4n4-lib` | `lib` | library | ✓ | — | Shared library mediating between stacks and clients |
 | `p4n4-hw` | `tools/hw` | hardware | — | — | KiCad PCB designs and RPi5 GPIO scripts |
 | `p4n4-templates` | `tools/templates` | registry | — | Git-native | Community template index + example templates |
@@ -118,7 +118,7 @@ p4n4/
 ├── stacks/
 │   ├── iot/                    ← submodule: p4n4-iot
 │   ├── ai/                     ← submodule: p4n4-ai
-│   └── edge/                   ← submodule: p4n4-edge
+│   └── extras/                 ← submodule: p4n4-extras (formerly p4n4-edge)
 ├── lib/                        ← submodule: p4n4-lib
 ├── cli/                        ← submodule: p4n4-cli
 ├── api/                        ← submodule: p4n4-api
@@ -146,7 +146,7 @@ Release notes live in each repository's `release-notes/` folder (see
 
 **Owns** the `p4n4-net` Docker bridge network. All other stacks attach to it as an external network.
 
-> **Note:** The pre-existing `p4n4-iot` repo uses the network name `p4n4-net`. The new `p4n4-ai` and `p4n4-edge` stacks reference `p4n4-net` as an external network. When running all stacks together, ensure network names are aligned (the CLI handles this automatically via `p4n4 up`).
+> **Note:** The pre-existing `p4n4-iot` repo uses the network name `p4n4-net`. The `p4n4-ai` and `p4n4-extras` stacks reference `p4n4-net` as an external network. When running all stacks together, ensure network names are aligned (the CLI handles this automatically via `p4n4 up`).
 
 ```
 p4n4-iot/
@@ -198,7 +198,7 @@ networks:
 
 ---
 
-### 3.4 `p4n4-ai` (GenAI stack)
+### 3.4 `p4n4-ai` (AI stack)
 
 Attaches to `p4n4-net` as an external network (must be created by `p4n4-iot` first, or via `p4n4 up`, which starts `p4n4-iot` first).
 
@@ -218,13 +218,24 @@ p4n4-ai/
 │   └── config/
 │       └── letta.conf
 │
-└── n8n/
-    └── workflows/
-        ├── alert-enrichment.json
-        ├── scheduled-digest.json
-        ├── device-onboarding.json
-        └── incident-escalation.json
+├── n8n/
+│   └── workflows/
+│       ├── alert-enrichment.json
+│       ├── scheduled-digest.json
+│       ├── device-onboarding.json
+│       └── incident-escalation.json
+│
+├── runner/                     ← edge inference runner (service and profile `ei-runner`)
+│   ├── Dockerfile              ← python:3.11-slim
+│   ├── runner.py               ← MQTT → model (.eim / .onnx / mock) → MQTT + InfluxDB; HTTP API
+│   └── requirements.txt
+├── edge-impulse/models/        ← .eim binaries are NEVER committed; provided at deploy time
+├── onnx/models/                ← .onnx files are NEVER committed
+└── tests/                      ← the runner's tests
 ```
+
+The runner was the `p4n4-edge` stack until it merged into this one
+([ADR-005](../decisions/adr/ADR-005.md)); see [Edge Inference](../stacks/edge-inference.md).
 
 **Network block in `docker-compose.yml`:**
 ```yaml
@@ -236,32 +247,26 @@ networks:
 
 ---
 
-### 3.5 `p4n4-edge` (Edge AI stack)
+### 3.5 `p4n4-extras` (optional services)
 
-Fully independent. Attaches to `p4n4-net` as external when used with the IoT stack, but can also run standalone on a dedicated network.
+Formerly `p4n4-edge`. Optional services outside the core: none enabled by default, none
+depended on by `p4n4-iot` or `p4n4-ai`. Each extra is a directory of its own, which the
+layer's `docker-compose.yml` pulls in with `include:`, so all extras run as one Compose
+project with one `.env`, each in a profile of its own name. See [Extras](../stacks/extras.md).
 
 ```
-p4n4-edge/
-├── docker-compose.yml
-├── docker-compose.override.yml.example
-├── Makefile                    ← make up, make deploy-model, make test-inference
-├── .env.example
-├── .gitignore
-├── README.md
-│
-├── runner/
-│   ├── Dockerfile              ← python:3.11-slim
-│   ├── runner.py               ← MQTT → model (.eim / .onnx / mock) → MQTT + InfluxDB; HTTP API
-│   └── requirements.txt
-├── edge-impulse/
-│   └── models/
-│       └── .gitkeep            ← .eim binaries are NEVER committed; provided at deploy time
-├── onnx/
-│   └── models/
-│       └── .gitkeep            ← .onnx files are NEVER committed
+p4n4-extras/
+├── docker-compose.yml          ← `include:` one line per extra (none yet); external p4n4-net
+├── .env.example                ← COMPOSE_PROFILES= (empty), every extra's variables
+├── Makefile                    ← make up (skips when nothing is enabled), make config
+├── README.md                   ← core vs extras, adding an extra
+├── _template/                  ← the skeleton extra to copy to <name>/
+│   ├── docker-compose.yml
+│   ├── .env.example
+│   ├── config/
+│   └── README.md
 └── scripts/
-    ├── selector.sh
-    └── check_env_example.py
+    └── check_env_example.py    ← every ${VAR} in every included file is in .env.example
 ```
 
 **Network block in `docker-compose.yml`:**
@@ -279,7 +284,7 @@ networks:
 The `pip install p4n4` package. A thin Typer/Rich presentation layer: all shared,
 framework-free logic lives in `p4n4-lib` (see the module table below). Scaffolding
 fetches stack files from the canonical stack repos at init time (`git clone --depth 1`),
-or from a local checkout via `--source-iot` / `--source-ai` / `--source-edge` for offline use.
+or from a local checkout via `--source-iot` / `--source-ai` / `--source-extras` for offline use.
 
 ```
 p4n4-cli/
@@ -338,8 +343,8 @@ so the stacks run as separate Compose projects sharing the `p4n4-net` network
 name = "p4n4"
 requires-python = ">=3.11"
 dependencies = [
-  "p4n4-lib>=0.1.0",
-  "typer[all]>=0.12",
+  "p4n4-lib>=0.4.0",
+  "typer[all]>=0.12,<0.28",
   "rich>=13",
   "questionary>=2",
   "jinja2>=3",
@@ -357,95 +362,49 @@ Documentation = "https://github.com/raisga/p4n4-docs"
 
 ### 3.7 `p4n4-templates` (community template registry)
 
-Acts as the `https://github.com/raisga/templates` index resolved by `p4n4 template search`.
+Git-native, with no server. Each template is a runnable project of its own; `p4n4 template`
+commands are planned, so today a template is copied as the project root.
 
 ```
 p4n4-templates/
-├── index.json                  ← community template index (short-name → repo URL map)
-├── README.md                   ← how to use and contribute templates
-├── TEMPLATE_GUIDE.md           ← full authoring guide (p4n4-template.toml spec)
-├── .github/
-│   └── workflows/
-│       └── validate-index.yml  ← CI: validate index.json schema on every PR
-│
+├── README.md                   ← catalog, using templates, contributing
+├── docs/
+│   ├── authoring.md            ← how to write a template
+│   ├── roadmap.md              ← the demo template series
+│   └── use-cases/              ← end-to-end walkthroughs
+├── schema/
+│   ├── template.schema.json    ← template.yaml schema
+│   └── theme.schema.json       ← dashboard theme (brand.json) schema
 ├── scripts/
-│   ├── validate_index.py       ← validates index.json schema
-│   └── validate_templates.py   ← validates all p4n4-template.toml files
-│
-└── examples/
-    ├── factory-baseline/       ← full IoT + GenAI + EI starter (manufacturing)
-    │   ├── p4n4-template.toml
-    │   ├── docker-compose.iot.yml.j2
-    │   ├── docker-compose.ai.yml.j2
-    │   ├── docker-compose.edge.yml.j2
-    │   ├── mosquitto/config/mosquitto.conf.j2
-    │   ├── mosquitto/config/acl.j2
-    │   ├── node-red/flows.json
-    │   ├── grafana/provisioning/dashboards/factory-base.json
-    │   └── n8n/workflows/alert-enrichment.json
-    │
-    └── iot-minimal/            ← IoT-only starter (no AI, no Edge)
-        ├── p4n4-template.toml
-        ├── docker-compose.iot.yml.j2
-        ├── mosquitto/config/mosquitto.conf.j2
-        ├── node-red/flows.json
-        └── grafana/provisioning/dashboards/minimal.json
-```
-
-**`index.json` schema:**
-```json
-{
-  "org": "community",
-  "index_version": "1",
-  "templates": {
-    "factory-baseline": {
-      "repo": "https://github.com/raisga/p4n4-templates.git",
-      "subdir": "examples/factory-baseline",
-      "description": "Full IoT + GenAI + EI stack for discrete manufacturing",
-      "tags": ["manufacturing", "vibration", "edge-impulse", "genai"],
-      "latest": "0.1.0"
-    },
-    "iot-minimal": {
-      "repo": "https://github.com/raisga/p4n4-templates.git",
-      "subdir": "examples/iot-minimal",
-      "description": "Minimal IoT-only stack for simple sensor monitoring",
-      "tags": ["minimal", "iot"],
-      "latest": "0.1.0"
-    }
-  }
-}
+│   └── validate.py             ← CI: schema, layers vs .p4n4.json, services, .env.example, dashboard block
+├── .github/workflows/ci.yml    ← validate, then each template's smoke test
+└── projects/
+    ├── mqtt-influx-grafana/    ← single-layer template: files at its root
+    │   ├── template.yaml       ← metadata (layers, services, ports, data contract)
+    │   ├── .p4n4.json
+    │   ├── docker-compose.yml · .env.example · config/
+    │   ├── theme/              ← optional p4n4-dashboard theme
+    │   └── tests/smoke.sh
+    └── mqtt-influx-grafana-ollama-go2rtc/   ← multi-layer template: iot/, ai/, extras/
 ```
 
 ---
 
 ### 3.8 `p4n4-docs` (documentation site)
 
+Markdown, read on GitHub; a MkDocs site is planned (no site config or CI yet).
+
 ```
 p4n4-docs/
-├── README.md                   ← full technical reference
-├── ARCHITECTURE.md             ← this file
-├── mkdocs.yml                  ← site config (deploy pending)
-├── docs/                       ← MkDocs source pages
-│   ├── adr/
-│   │   ├── ADR-001.md
-│   │   └── ADR-002.md
-│   ├── diagrams/
-│   │   └── .gitkeep
-│   ├── index.md
-│   ├── getting-started.md
-│   ├── iot-stack.md
-│   ├── ai-stack.md
-│   ├── edge-stack.md
-│   ├── hardware.md
-│   ├── emulator.md
-│   ├── cli-reference.md
-│   ├── template-registry.md
-│   ├── security.md
-│   ├── design.md
-│   └── specs.md
-└── .github/
-    └── workflows/
-        └── deploy-docs.yml     ← publish to GitHub Pages on push to main
+├── README.md                   ← overview and index
+├── getting-started.md
+├── stacks/                     ← iot-stack, ai-stack, edge-inference (edge-stack points there), extras, dashboard
+├── reference/                  ← architecture (this file), cli-reference, api, dashboard,
+│                                  template-registry, hardware, emulator
+├── guides/                     ← deployment, development, security, migrating-from-edge
+├── decisions/                  ← design, specs, design drafts, adr/ (ADR-001 … ADR-005)
+├── project/                    ← releasing, known-issues
+└── diagrams/
 ```
 
 ### 3.9 `p4n4-hw` (hardware designs and scripts)
@@ -504,9 +463,14 @@ p4n4-emu/
 │   │   └── docker_info.py      ← block device behind Docker's data root
 │   ├── sim/
 │   │   └── sensor_sim.py       ← synthetic MQTT sensor publisher (Docker image)
-│   └── hw/
-│       ├── gpio_stub.py        ← drop-in RPi.GPIO replacement, with set_input() to drive pins
-│       └── peripherals.py      ← I2C / SPI / UART stubs
+│   └── hw/                     ← `p4n4-emu run`: the emulated board a script sees
+│       ├── pins.py, buses.py   ← the GPIO lines and the I2C / SPI / UART buses all stubs share
+│       ├── gpio_stub.py, lgpio_stub.py, gpiod_stub/   ← RPi.GPIO, lgpio (gpiozero), gpiod
+│       ├── smbus_stub.py, spidev_stub.py, serial_stub.py
+│       ├── devices/            ← BME280, MPU-6050, ADS1115, MCP3008, DS18B20 register models
+│       ├── vfs.py              ← /proc/device-tree, 1-Wire sysfs and /dev nodes
+│       ├── mqtt_bridge.py      ← emu/gpio/<pin>/set and /state
+│       └── shims.py            ← installs it all (from site/sitecustomize.py under `run`)
 └── tests/
 ```
 
@@ -535,16 +499,16 @@ and `down` deletes it. The overlay records its profile in an `x-p4n4-emu` block,
           ┌──────────────────┼──────────────────┐
           │                  │                  │
    ┌──────▼──────┐   ┌───────▼──────┐   ┌──────▼──────┐
-   │  p4n4-iot   │   │   p4n4-ai    │   │  p4n4-edge  │
+   │  p4n4-iot   │   │   p4n4-ai    │   │ p4n4-extras │
    │ (owns net)  │   │ (ext: net)   │   │ (ext: net)  │
    └──────┬──────┘   └──────────────┘   └─────────────┘
           │ p4n4-net (bridge, created by p4n4-iot)
-          │ ← p4n4-ai/edge attach via p4n4-net (see §5.1)
+          │ ← p4n4-ai/extras attach via p4n4-net (see §5.1)
           │
    ┌──────▼──────────────────────────────────────────┐
-   │                  p4n4-cli                        │
-   │  bundles Jinja2 templates for all three stacks   │
-   │  reads p4n4-templates index for `template` cmds  │
+   │           p4n4-cli (through p4n4-lib)            │
+   │  clones each stack repo at `p4n4 init`           │
+   │  (`template` commands planned)                   │
    └──────────────────────────────────────────────────┘
           │
    ┌──────▼──────┐
@@ -557,12 +521,14 @@ and `down` deletes it. The overlay records its profile in an `x-p4n4-emu` block,
 ```
 1. p4n4-iot    → creates p4n4-net + starts Mosquitto & InfluxDB first
 2. p4n4-ai     → attaches to p4n4-net; needs Mosquitto (optional) + InfluxDB healthy
-3. p4n4-edge   → attaches to p4n4-net; fully independent of ai stack
+3. p4n4-extras → attaches to p4n4-net; optional, skipped while nothing is enabled
 4. dashboard   → attaches to p4n4-net; proxies p4n4-api (and optionally Grafana), so it starts last
 ```
 
 Running `p4n4 up` with no stack argument enforces this order: it starts each stack's
-Compose project in sequence (`iot → ai → edge → dashboard`); `p4n4 down` stops them in reverse.
+Compose project in sequence (`iot → ai → extras → dashboard`); `p4n4 down` stops them in reverse.
+A project from before ADR-005 may still have an `edge` layer: it runs right after `ai` until
+`p4n4 migrate edge` moves it.
 
 ---
 
@@ -571,7 +537,7 @@ Compose project in sequence (`iot → ai → edge → dashboard`); `p4n4 down` s
 ### 5.1 Docker Network
 
 - The pre-existing `p4n4-iot` creates a network named **`p4n4-net`**.
-- `p4n4-ai` and `p4n4-edge` declare **`p4n4-net`** as `external: true`.
+- `p4n4-ai` and `p4n4-extras` declare **`p4n4-net`** as `external: true`.
 - When running all stacks together, the CLI (`p4n4 up`) starts the stacks in dependency
   order (`iot` first), so the IoT compose project creates `p4n4-net` before the other
   stacks attach to it. Manual deployments must ensure the network name is consistent
@@ -612,7 +578,7 @@ changed in InfluxDB itself (see the [Security guide](../guides/security.md#secre
 
 **Standalone (without CLI):**
 Each stack repo ships its own `.env.example`. Copy to `.env` and fill in values manually.
-Cross-stack secrets (e.g. `INFLUXDB_TOKEN` used by `p4n4-iot`, `p4n4-ai` and `p4n4-edge`) must be
+Cross-stack secrets (e.g. `INFLUXDB_TOKEN` used by `p4n4-iot` and `p4n4-ai`) must be
 kept consistent manually — document this prominently in each stack's README.
 
 ### 5.3 Shared Secret Reference
@@ -627,7 +593,7 @@ kept consistent manually — document this prominently in each stack's README.
 | `N8N_BASIC_AUTH_USER` / `_PASSWORD` | `p4n4-ai` | n8n |
 | `N8N_ENCRYPTION_KEY` | `p4n4-ai` | n8n |
 | `LETTA_SERVER_PASSWORD` | `p4n4-ai` | Letta, Node-RED |
-| `EI_API_KEY` | `p4n4-edge` | edge runner (optional) |
+| `EI_API_KEY` | `p4n4-ai` | edge runner (optional) |
 
 ---
 
@@ -640,45 +606,38 @@ Each repository is versioned independently with **`MAJOR.MINOR.PATCH`** Git tags
 | Repo | Version bumps when… |
 |---|---|
 | `p4n4-iot` | compose/config changes, new service added, breaking config change |
-| `p4n4-ai` | same as above for AI services |
-| `p4n4-edge` | same for Edge Impulse services |
+| `p4n4-ai` | same as above for AI services, the edge inference runner included |
+| `p4n4-extras` | an extra added, changed or removed |
 | `p4n4-cli` | new CLI command, flag changes, template schema change, bug fixes |
 | `p4n4-templates` | new example template, index entry added/changed, guide updated |
 | `p4n4-docs` | no formal releases; `main` is always current |
 
-### 6.2 CLI ↔ Stack Template Compatibility
+### 6.2 CLI ↔ Stack Compatibility
 
-The CLI bundles its own Jinja2 templates for scaffolding. To track which bundled template
-version is compatible with which stack config version, a compatibility table is maintained
-in `p4n4-cli/p4n4/compat.py`:
-
-```python
-STACK_COMPAT = {
-    "iot":  ">=0.1.0",
-    "ai":   ">=0.1.0",
-    "edge": ">=0.1.0",
-}
-```
-
-When a breaking change is made to a stack repo, the CLI's bundled templates are updated in the
-same PR and the `STACK_COMPAT` table is bumped. The CLI warns if the running stack version is
-outside the compatible range (detected via a `VERSION` file in each stack repo).
+There is no runtime version check, `compat.py` or stack `VERSION` file. `p4n4 init` copies
+each layer from its stack repo's `main` (or a local checkout with `--source-<layer>`), and
+p4n4-lib's layer registry (`layers.py`, `sources.yaml`) names the repos, the files a project
+copies and the files and `.env` keys it must have. So a stack change that moves or requires
+files ships with a p4n4-lib release that knows about it: stacks pushed first, then p4n4-lib,
+then the CLI, p4n4-api and p4n4-emu that require it (`p4n4-lib>=0.4.0`); see
+[releasing](../project/releasing.md). A layer the registry drops keeps running as a legacy
+layer until `p4n4 migrate` moves it (`edge`, [ADR-005](../decisions/adr/ADR-005.md)).
 
 ### 6.3 Release Flow (`p4n4-cli`)
 
 ```
-1. Bump version in p4n4/cli.py __version__ and pyproject.toml
-2. Update CHANGELOG.md
+1. Bump the version in pyproject.toml and p4n4/__init__.py
+2. Update CHANGELOG.md and write release-notes/v<version>.md
 3. Open PR → CI passes → merge to main
-4. Tag: git tag v0.2.0 && git push origin v0.2.0
-5. publish.yml workflow triggers → builds wheel → uploads to PyPI
+4. gh release create v<version> --notes-file release-notes/v<version>.md
+5. publish.yml (on a published release) → builds wheel → uploads to PyPI
 ```
 
 ---
 
 ## 7. CI/CD per Repository
 
-### `p4n4-iot`, `p4n4-ai`, `p4n4-edge`
+### `p4n4-iot`, `p4n4-ai`, `p4n4-extras`
 
 ```yaml
 # .github/workflows/ci.yml
@@ -734,33 +693,23 @@ jobs:
 ### `p4n4-templates`
 
 ```yaml
-# validate-index.yml
+# ci.yml
 on: [push, pull_request]
 jobs:
   validate:
     steps:
       - uses: actions/checkout@v4
-      - name: Validate index.json schema
-        run: python scripts/validate_index.py index.json
-      - name: Validate all example p4n4-template.toml files
-        run: python scripts/validate_templates.py examples/
+      - run: uv run scripts/validate.py          # every template
+      - run: echo "templates=$(uv run scripts/validate.py --list)" >> "$GITHUB_OUTPUT"
+  smoke:                                         # one job per template
+    needs: validate
+    steps:
+      - run: ./tests/smoke.sh                    # in an isolated Compose project
 ```
 
 ### `p4n4-docs`
 
-```yaml
-# deploy-docs.yml
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - run: pip install mkdocs-material
-      - run: mkdocs gh-deploy --force
-```
+No CI yet. Once the MkDocs site exists, a push to `main` will run `mkdocs gh-deploy`.
 
 ---
 
@@ -798,9 +747,9 @@ Step 6 — Scaffold p4n4-ai
   → .env.example
   → CI workflow
 
-Step 7 — Scaffold p4n4-edge
-  → docker-compose.yml with external p4n4-net
-  → edge-impulse/models/.gitkeep
+Step 7 — Scaffold p4n4-extras (formerly p4n4-edge; its runner is now in p4n4-ai)
+  → docker-compose.yml with external p4n4-net and an empty include:
+  → _template/ (the skeleton extra)
   → .env.example
   → CI workflow
 
@@ -827,7 +776,7 @@ Step 9 — Scaffold p4n4-templates
 |---|---|---|
 | `stack: iot` | `#e07b39` | Relates to p4n4-iot |
 | `stack: ai` | `#7b39e0` | Relates to p4n4-ai |
-| `stack: edge` | `#39b0e0` | Relates to p4n4-edge |
+| `stack: extras` | `#39b0e0` | Relates to p4n4-extras (was `stack: edge`) |
 | `stack: cli` | `#3de05e` | Relates to p4n4-cli |
 | `type: bug` | `#d73a4a` | Something is broken |
 | `type: feature` | `#0075ca` | New feature request |
@@ -846,8 +795,8 @@ Step 9 — Scaffold p4n4-templates
 
 Apply to all stack repos: `iot`, `docker-compose`, `docker`, `self-hosted`
 - `p4n4-iot` also: `mosquitto`, `node-red`, `influxdb`, `grafana`
-- `p4n4-ai` also: `ollama`, `letta`, `n8n`, `llm`, `genai`
-- `p4n4-edge` also: `edge-impulse`, `tinyml`, `edge-ai`
+- `p4n4-ai` also: `ollama`, `letta`, `n8n`, `llm`, `genai`, `edge-impulse`, `tinyml`, `edge-ai`
+- `p4n4-extras` also: `extras`, `addons`
 - `p4n4-cli` also: `cli`, `python`, `typer`, `scaffolding`
 
 ---

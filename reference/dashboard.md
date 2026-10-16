@@ -8,7 +8,7 @@ It runs on Linux, macOS, Windows, Android and iOS, and can be white-labelled per
 | Tab | What it does | Talks to |
 |-----|--------------|----------|
 | **Services** | Launcher for every p4n4 service, with live status | [p4n4-api](api.md) `GET /api/v1/stacks`, or a direct probe of each port when the API is unreachable |
-| **Edge** | CPU, memory, SoC temperature and inference latency, with 2 minutes of history | A metrics URL, by default `GET /api/v1/edge/metrics` ([contract](#edge-metrics-contract)); has a demo mode |
+| **Edge** | CPU, memory, SoC temperature and inference latency, with 2 minutes of history (10 or 30 in Settings → Appearance) | A metrics URL, by default `GET /api/v1/edge/metrics` ([contract](#edge-metrics-contract)); has a demo mode |
 | **Assistant** | Chat with a local model or a stateful agent; admins and power users choose the model or agent for everyone | p4n4-api `POST /api/v1/agents/chat` (Ollama, streaming) or `/api/v1/agents/{id}/chat` (Letta), with the choice in `GET/PUT /api/v1/agents/config` |
 | **Grafana** | Embedded Grafana, in kiosk mode by default and in the app's light or dark theme | `http://<host>:3000` |
 | **Video** | Live camera feeds from the edge device, one at a time or in a grid. Admins can switch to demo cameras (openly licensed sample clips) | Any MJPEG stream, JPEG snapshot URL, or video file (`.mp4`, `.webm`, `.mov`, `.m3u8`) |
@@ -24,7 +24,7 @@ The view comes from the signed-in account and is kept until you sign out.
 | Clients | Client deployments as connection profiles (name, host, optional API URL) with live status; **Connect** switches the dashboard to one | — | — |
 | Services | Launcher, plus stack controls (start/restart/stop) | Launcher; no stack controls | Only if enabled; no stack controls |
 | Details | Hosts, URLs and raw errors; camera, agent and Grafana config; edge and camera demo toggles | Same as admin, without the demo toggles | Plain-language messages only |
-| Settings | Everything, plus **Views** (the tab order, each view's tabs, and a preview), **Users** and **Diagnostics** | Account, Appearance, Accessibility, Language & region, Connection, Endpoints and About | Account, Appearance, Accessibility, Language & region and About |
+| Settings | Everything, plus **Views** (the tab order, each view's tabs and other settings, and a preview), **Users**, **Banner**, **Audit log**, **This device** and **Diagnostics** | Account, Appearance, Accessibility, Language & region, Connection, Endpoints and About | Account, Appearance, Accessibility, Language & region and About |
 
 Brand tabs come in one order for every view, after Home: **Agent → Grafana → Video → Edge →
 Services** by default. Admins drag them into another order in Settings → Views. The order and
@@ -32,6 +32,23 @@ each view's tabs are saved on the connected deployment's p4n4-api
 (`GET/PUT /api/v1/dashboard/views`), so they apply on every device. Admins can **preview** the
 power or normie view from Settings → Views; the preview stays on that device and ends on
 sign-out.
+
+Settings → Views also sets, for the power and normie views, what else each one shows. These
+too are kept on p4n4-api (`GET/PUT /api/v1/dashboard/view-settings`) and apply on every
+device; devices check for changes to them, and to the tabs, every minute:
+
+| Setting | Default | Effect |
+|---|---|---|
+| Opens on | Home | The tab the view opens on, when it has that tab |
+| Home shows | Everything | Home's cards: the status summary, the device's readings and the project's page (`HOME.md`) |
+| Grafana page | The deployment's | Its own Grafana page, e.g. a simpler dashboard for normies. Normies always get Grafana in kiosk mode |
+| Cameras | All | Which of the deployment's cameras it shows (demo cameras follow the camera they stand in for) |
+| Vision overlay | On | Whether the vision overlay is drawn over its cameras |
+| Alerts that pop up | All | All alerts, only those to review, or none |
+| Chime for alerts to review | On | Turns the chime off for the view; each device's own sound setting still applies |
+
+Admins always get the defaults. These settings are presentation, like the tabs: p4n4-api
+still decides what each role may read.
 
 The first time a normie signs in on a device, a short tour
 ([`flutter_intro`](https://pub.dev/packages/flutter_intro)) points out the app name, the
@@ -41,6 +58,45 @@ rewrite any step's text (`tour` in `brand.json`).
 
 The views decide what the dashboard shows; p4n4-api enforces what each role can do, so a
 normie can only read status and chat with the assistant, whatever the dashboard shows.
+
+Admins also have:
+
+- **Users:** each account's view and last sign-in. Reset a password (the user then chooses a
+  new one at their next sign-in, unless the box is cleared), require a new password from the
+  first sign-in, **sign a user out everywhere** (a lost tablet, someone who left) while keeping
+  their password, or remove the account.
+- **Banner:** a message above every view on every device of the deployment (planned
+  maintenance, a known outage), info or warning, until cleared or for 1, 4 or 24 hours. It's
+  kept by p4n4-api (`/api/v1/dashboard/banner`), and devices check for it every minute.
+- **Audit log:** who changed what (users, views, the banner, stack actions…) and when,
+  newest first.
+
+## Kiosk mode and idle devices
+
+For a shared screen such as a wall tablet, an admin turns on **kiosk mode** on that device
+(Settings → This device) and signs it in with a viewer (normie) account. The device keeps it:
+
+- There's no Sign out or theme toggle, no tour, and Settings holds only Accessibility, so a
+  visitor can enlarge the text. A lock button leaves kiosk mode with an **admin's** sign-in, and the
+  device then stays signed in as that admin.
+- After **Start over when idle** (5 minutes by default; 1 to 30, or never) without a touch,
+  click or key, the kiosk goes back to the view's start tab, closes whatever is open, clears the
+  Assistant conversation and puts text size, contrast and motion back to how they were when kiosk
+  mode was turned on. It happens once per quiet spell. Touches inside the embedded Grafana page
+  don't count as activity (they never reach the dashboard), so a long look at a chart there can
+  be cut short: pick a start-over time longer than that.
+- Turning kiosk mode on also turns on **Sign admins and power users out when idle** (15 minutes)
+  if it was off. It applies to any admin or power user signed in on this device, kiosk or not.
+
+Kiosk mode and the idle settings belong to the device, not the deployment. Kiosk mode needs
+p4n4-api accounts: without them (`P4N4_API_AUTH=off`) nobody could leave it. If the kiosk's sign-in
+ends (its refresh token unused for 7 days, or an admin signing it out everywhere), the sign-in
+screen comes back; signing in with the viewer account resumes kiosk mode, and an admin or power
+user who signs in gets their own view.
+
+An account that must choose a new password gets only the password form after signing in, and
+p4n4-api turns down everything else until it's changed. Anyone signed in with a p4n4-api
+account can change their own password in Settings → Account; their other sign-ins end.
 
 > **Sign-in uses p4n4-api accounts** (`p4n4-api users add`, or Settings → Users). `admin`
 > accounts get the admin view, `operator` accounts the power view and `normie` accounts the
@@ -52,7 +108,14 @@ normie can only read status and chat with the assistant, whatever the dashboard 
 Connection settings (host, API, metrics, Grafana and cameras) belong to the connected
 deployment and switch together on **Connect**. Theme, language, accessibility (text size,
 high contrast, reduce motion) and region settings (temperature unit, 12/24-hour time) are
-app-wide. The p4n4-api refresh token is kept in the platform's secure storage (Keychain,
+app-wide.
+
+Admins and power users also set their own defaults on a device in Settings → Appearance: the
+tab it opens on (ahead of the view's start tab), how many minutes the Device tab's charts span
+(2, 10 or 30; app-wide) and the camera the Cameras tab shows first. The start tab and camera are
+per deployment. An admin previewing another view gets that view's start tab, not their own.
+
+The p4n4-api refresh token is kept in the platform's secure storage (Keychain,
 Android Keystore, Windows Credential Manager or the Linux Secret Service); the Letta
 password, which older versions kept there, now stays on the server and is removed from
 devices on upgrade. Use host `10.0.2.2` to reach your machine from the Android emulator.
@@ -77,6 +140,7 @@ every 30 s while the API is unreachable:
 | `layers` | Services and Home show only those stacks (plus the API) |
 | `dashboard.tabs` | Brand tabs outside the list are hidden, in both views |
 | `dashboard.grafana_path` | The Grafana tab opens this page, unless the deployment has its own path. Project defaults come before brand defaults |
+| `dashboard.home` | A Markdown file, relative to the project, shown at the top of Home (default `HOME.md`), or its translation for the app's language (`HOME.es.md`). Links like `[Activity](tab:feed)` open that tab, and `[Is any unit on warning?](ask:)` asks the Assistant. A missing or empty file shows nothing; `p4n4 validate` reports a named file that's missing |
 | `dashboard.cameras` | The Video tab's cameras, until the deployment saves its own; they come before a brand `videoUrl`. Each is `{id, name}` plus an absolute `url`, or a `port` and `path` on the connected host |
 
 Without the API (or before signing in), nothing changes: every

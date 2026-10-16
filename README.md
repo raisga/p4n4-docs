@@ -25,8 +25,8 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | Stack | Services |
 |-------|---------|
 | [IoT](stacks/iot-stack.md) | Eclipse Mosquitto · Node-RED · InfluxDB · Grafana |
-| [AI](stacks/ai-stack.md) | Ollama (+ optional Letta · n8n) |
-| [Edge](stacks/edge-stack.md) | Inference runner (Edge Impulse `.eim` · ONNX · mock) |
+| [AI](stacks/ai-stack.md) | Ollama (+ optional Letta · n8n · System 1 · [inference runner](stacks/edge-inference.md): Edge Impulse `.eim` · ONNX · mock) |
+| [Extras](stacks/extras.md) *(optional)* | Services outside the core, none by default; a template to add your own |
 
 **Minimum requirements:** 4 GB RAM · 10 GB disk · Docker 24+ with Compose v2 · Python 3.11+
 
@@ -39,7 +39,9 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Getting Started](getting-started.md) | Installation, first project, service URLs |
 | [IoT Stack](stacks/iot-stack.md) | Mosquitto · Node-RED · InfluxDB · Grafana reference |
 | [AI Stack](stacks/ai-stack.md) | Ollama · Letta · n8n reference |
-| [Edge Stack](stacks/edge-stack.md) | Inference runner, model backends, HTTP API |
+| [Edge Inference](stacks/edge-inference.md) | The AI stack's inference runner (`ei-runner`): model backends, HTTP API |
+| [Extras](stacks/extras.md) | Optional services: core vs extras, adding a service |
+| [Migrating from the edge stack](guides/migrating-from-edge.md) | `p4n4 migrate edge`, by hand, and what changed names |
 | [Dashboard Service](stacks/dashboard.md) | Web UI on port 8088 with a same-origin proxy |
 | [CLI Reference](reference/cli-reference.md) | All `p4n4` commands |
 | [REST API](reference/api.md) | p4n4-api: sign-in, project, stack and edge metrics endpoints |
@@ -50,6 +52,11 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Security](guides/security.md) | Hardening guide |
 | [Development](guides/development.md) | Run a project on your checkout's lib, cli, api and dashboard (`scripts/dev`, `doctor`, `repos`) |
 | [Deploying a template](guides/deployment.md) | Rehearse a template under p4n4-emu, then deploy it to Hetzner Cloud or a host you bring (GCP example) |
+| [Emulators on AWS](guides/aws.md) | Set up an AWS account, run a project under p4n4-emu on an EC2 instance, take a report and its cost, delete the instance |
+| [Emulators on Google Cloud](guides/gcp.md) | The same on Google Cloud: a project, a Compute Engine VM (Axion arm64), the report, billing by label, deletion |
+| [Emulators on Azure](guides/azure.md) | The same on Azure: a resource group per run, a Cobalt 100 arm64 VM that deletes its own group at its TTL, the report, cost by resource group |
+| [Emulators on DigitalOcean](guides/digitalocean.md) | The same on DigitalOcean: x86 Droplets only (native or QEMU mode), a team of its own, a Droplet that destroys itself at its TTL, cost from run time |
+| [Testing on a Jetson Orin Nano](guides/jetson.md) | Remote test host: Tailscale SSH, NoMachine desktop, Cloudflare Tunnel for web UIs, Ollama on the Jetson GPU |
 | [Use case: greenhouse telemetry](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-telemetry.md) | `mqtt-influx-grafana` template + p4n4-api + a white-label dashboard, tied together by `.p4n4.json` |
 | [Use case: greenhouse assistant](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-assistant.md) | `mqtt-influx-grafana-ollama`: the same project plus a local LLM that answers from the readings, and moving a project onto it |
 | [Use case: road traffic](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/road-traffic.md) | `mqtt-influx-grafana-ollama-go2rtc`: road traffic counting with ALPR, with live video, an assistant and plates kept for a retention period |
@@ -59,8 +66,9 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [ADR-001](decisions/adr/ADR-001.md) | Multi-repository architecture decision record |
 | [ADR-002](decisions/adr/ADR-002.md) | Per-layer subdirectories in multi-layer projects |
 | [ADR-003](decisions/adr/ADR-003.md) | The dashboard ships as a web container by default |
-| [AI Harness (draft)](decisions/ai-harness.md) | Building p4n4 projects with coding agents: harness tools, community extras (`stacks/extra/`), the p4n4 Car reference project and its OBD-II spike |
-| [System 1 (draft)](decisions/system1.md) | Fast typed decisions with Laya: spike results, architecture, phases |
+| [ADR-004](decisions/adr/ADR-004.md) | An encoder classifier for bounded decisions (System 1) |
+| [AI Harness (draft)](decisions/ai-harness.md) | Building p4n4 projects with coding agents: harness tools, community extras (`stacks/extras/`), the p4n4 Car reference project and its OBD-II spike |
+| [System 1](decisions/system1.md) | Fast typed decisions with Laya: spike results, rules of use, architecture, phases (S1, S2 and the S3 infrastructure implemented) |
 | [Known Issues](project/known-issues.md) | Problems found 2026-09-23 to 09-27, with reproductions; all fixed |
 | [Releasing](project/releasing.md) | Release set order, `gh release` commands, how to write a release body |
 | [Release checklist, 2026-07](project/todo.md) | Historical: p4n4-lib extraction and multi-layer rollout |
@@ -71,7 +79,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 
 ### Stack Topology
 
-p4n4 is organised into three cooperating stacks sharing a Docker bridge network (`p4n4-net`):
+p4n4's core is two cooperating stacks sharing a Docker bridge network (`p4n4-net`); optional services live in a third, extras, that nothing in the core depends on:
 
 ```mermaid
 graph LR
@@ -82,14 +90,15 @@ graph LR
         Grafana["Grafana<br/>Dashboards"]
     end
 
-    subgraph ai["GenAI Stack - p4n4-ai"]
+    subgraph ai["AI Stack - p4n4-ai"]
         Ollama["Ollama<br/>LLM Inference"]
         Letta["Letta<br/>Agent Memory"]
         n8n["n8n<br/>AI Workflows"]
+        EI["Inference Runner<br/>EI · ONNX (ei-runner)"]
     end
 
-    subgraph edge["Edge AI Stack - p4n4-edge"]
-        EI["Inference Runner<br/>EI · ONNX"]
+    subgraph extras["Extras - p4n4-extras (optional)"]
+        X["Optional services<br/>none by default"]
     end
 
     net(["p4n4-net"])
@@ -99,6 +108,7 @@ graph LR
     net <--> Letta
     net <--> n8n
     net <--> EI
+    net -.-> X
 ```
 
 Node-RED sits at the intersection of the IoT and AI stacks. It subscribes to Mosquitto, normalises and routes data to InfluxDB, and can simultaneously call n8n webhooks or directly query Ollama/Letta APIs when AI reasoning is needed.
@@ -219,8 +229,8 @@ See the [Security guide](guides/security.md) for the full hardening walkthrough.
 p4n4/                       (monorepo — you are here)
 ├── stacks/
 │   ├── iot/                ← IoT stack (p4n4-iot)
-│   ├── ai/                 ← GenAI stack (p4n4-ai)
-│   └── edge/               ← Edge AI stack (p4n4-edge)
+│   ├── ai/                 ← AI stack: GenAI + edge inference (p4n4-ai)
+│   └── extras/             ← Optional services (p4n4-extras, formerly p4n4-edge)
 ├── lib/                    ← Shared library (p4n4-lib)
 ├── cli/                    ← Python CLI — pip install p4n4 (p4n4-cli)
 ├── api/                    ← REST API gateway (p4n4-api)

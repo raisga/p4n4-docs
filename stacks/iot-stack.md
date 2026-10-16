@@ -56,12 +56,21 @@ Devices publish JSON to `sensors/<device-id>/<measurement>`, for example
 | `sensors/<device-id>/<measurement>` | `INFLUXDB_BUCKET` (`raw_telemetry`) | `sensor_data` | `device`, `sensor` |
 | `inference/<device-id>/result` | `INFLUXDB_BUCKET` | `inference` | `device`, `model` (if in payload) |
 | `sandbox/sensors/…`, `sandbox/inference/…` | `INFLUXDB_SANDBOX_BUCKET` (`sandbox`) | same as above | same as above |
+| `system1/decisions/<set>` | `INFLUXDB_BUCKET_AI_EVENTS` (`ai_events`) | `system1_decision`, one point per answer | `set`, `question`, `choice`, `caller`, `checkpoint` |
+| `system1/feedback/<set>` | `INFLUXDB_BUCKET_AI_EVENTS` | `system1_feedback`, one point per confirmation | `set`, `question`, `expected`, `choice`, `caller` |
 
 Numbers, strings and booleans in the payload become fields. The device comes from the
 topic, so a `device` key in the payload is ignored. Messages on `sensors/` or `inference/`
 topics with any other shape (for example `sensors/temperature`) are dropped with a warning
 in the Node-RED debug sidebar, and failed InfluxDB writes reach a Catch node. The full
 rules are in [§8.6 of the specs](../decisions/specs.md#86-mqtt-topic-conventions).
+
+System 1 decisions ([AI stack](ai-stack.md#system-1-typed-decisions)) go through their own
+flow tab, **System 1 Decision Log**. Its tags must match `^[a-z0-9_-]{1,64}$`, so series stay
+bounded by the question sets' menus; a decision with any other tag is dropped with a
+warning. The fields are `confidence`, `abstain`, `used`, `set_version`, `latency_ms`, `id`,
+`revision`, `subject` and `state_sha256`: the state itself is never stored. Feedback
+points have `agreed`, `abstain`, `set_version` and `id`.
 
 ## InfluxDB buckets
 
@@ -94,6 +103,44 @@ rather than the file, because Node-RED saves by renaming a temporary file over
 `flows.json`, so deploying from the editor writes straight to the project. Commit the file
 to keep your changes.
 
+## System 1
+
+When the AI stack runs System 1 ([AI stack](ai-stack.md#system-1-typed-decisions)), this
+stack logs its decisions and feedback (above) and adds three things.
+
+- **The `p4n4-system1` subflow**, in the palette under **p4n4 AI**, calls System 1 from
+  any flow:
+  - **In:** the state in `msg.payload`, and the set in `msg.set` or the subflow's `SET`
+    property (default `incident-triage`).
+  - **Out:** the response in `msg.payload`, with each answer's `choice`, `confidence` and
+    `abstain`, and `msg.system1 = {id, set, version, used}`.
+  - **On any failure** (no key, an unknown set, an error status, a refused connection, a
+    timeout after `TIMEOUT_MS`, default 5000) it sets `msg.error` and sends a null
+    payload; it never throws. Treat an abstained answer like an error: no suggestion.
+  - It publishes the decision log itself, with `CALLER` (default `node-red`) as the
+    caller.
+  - It needs `SYSTEM1_API_KEY` in this stack's `.env`, the same value as the AI stack's;
+    `p4n4 init` and `p4n4 ai system1 enable` write it.
+  - The **System 1 Decision Log** tab has a one-click example.
+- **Grafana's System 1 dashboard** (folder MING) shows, per set and question:
+  - answers per option, and the abstention and used rates;
+  - the confidence distribution and latency;
+  - agreement with the people who confirmed or corrected answers;
+  - a drift table, with each option's share in the last 7 days against the 28 days
+    before.
+- **Drift alerts** (`provisioning/alerting/system1.yml`, folder "System 1"): every 15
+  minutes, per set and question, the last 7 days against the 28 days before. They fire when
+  the abstention rate doubles, an option's share moves more than 20 points, or latency p95
+  passes 2.5 s, given at least 30 decisions in both periods. They go to the contact point
+  **p4n4 System 1 drift**, n8n's System 1 Drift webhook, authenticated with
+  `SYSTEM1_ALERT_TOKEN`, which publishes them on `system1/drift/<set>`. They don't touch
+  your notification policies.
+- **Labels.** `p4n4 ai system1 label <set> --write` writes labels of past events as
+  `system1_label` points, shown as the dashboard's **Labels** annotations.
+- **Kept examples.** When n8n's Operator Intake sets `FEEDBACK_STATES`, feedback carries
+  the message text. Node-RED appends it to `/data/system1/feedback/<set>.jsonl` in its
+  volume, never to InfluxDB, for `p4n4 ai system1 feedback`.
+
 ## Environment variables
 
 | Variable | Default | Description |
@@ -113,9 +160,12 @@ to keep your changes.
 | `GRAFANA_SUB_PATH` | `/` | `/grafana/` when p4n4-dashboard proxies Grafana on its own origin |
 | `NODE_RED_USER` / `NODE_RED_PASSWORD` | `admin` / *(empty in Compose, `adminpassword` in `.env.example`)* | Node-RED editor login |
 | `TELEGRAF_HOSTNAME` / `TELEGRAF_INTERVAL` | `p4n4` / `10s` | Telegraf's `host` tag and collection interval |
+| `SYSTEM1_API_KEY` | *(empty)* | The `p4n4-system1` subflow's bearer token, the AI stack's value; empty: the subflow answers with `msg.error` |
+| `SYSTEM1_ALERT_TOKEN` | *(empty)* | What Grafana's System 1 drift alerts send to n8n, the AI stack's value; empty: n8n refuses them |
 
 The defaults are placeholders. `p4n4 init` generates real values. `p4n4 secret rotate`
-replaces `NODE_RED_PASSWORD` only: InfluxDB and Grafana keep the password and token they
+replaces `NODE_RED_PASSWORD`, `SYSTEM1_API_KEY` and `SYSTEM1_ALERT_TOKEN` (with the same
+new values as the AI stack's) only: InfluxDB and Grafana keep the password and token they
 first start with, so change those in the service (see the
 [Security guide](../guides/security.md#secret-rotation)).
 

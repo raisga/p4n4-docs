@@ -69,7 +69,7 @@ Simulates the p4n4 platform boot sequence. Each phase is reflected by a distinct
 | Network bridge | 3× burst of 4 pulses (250 ms) |
 | IoT stack (MING) | 1 blink per service (600 ms) |
 | GenAI stack | 1 blink per service (600 ms) |
-| Edge AI stack | 1 blink per service (600 ms) |
+| Edge inference (AI stack, `ei-runner`) | 1 blink per service (600 ms) |
 | Boot complete | Triple pulse → LED solid on |
 
 ```bash
@@ -80,7 +80,7 @@ python3 scripts/rpi5/p4n4_boot_sim.py
 
 ### `p4n4_shutdown_sim.py`
 
-Simulates a graceful platform shutdown in reverse boot order (API → Edge AI → GenAI → IoT → network → kernel → power-off).
+Simulates a graceful platform shutdown in reverse boot order (API → edge inference → GenAI → IoT → network → kernel → power-off).
 
 ```bash
 python3 scripts/rpi5/p4n4_shutdown_sim.py
@@ -157,4 +157,4 @@ MQTT_USER=indicator MQTT_PASSWORD=... \
 
 ## Workstation development
 
-The GPIO scripts require physical RPi hardware. For workstation development, `p4n4_emu.hw.gpio_stub` is a drop-in `RPi.GPIO` replacement — see the [Emulator reference](emulator.md). The scripts run under it unchanged, including `p4n4_button_handler.py`'s edge detection on GPIO 27. Press the button from a test or a REPL with `GPIO.set_input(27, GPIO.LOW)` and release it with `GPIO.set_input(27, GPIO.HIGH)`. Two presses within 0.4 s count as a double press.
+The GPIO scripts require physical RPi hardware. For workstation development, `p4n4-emu run` runs them unchanged against an emulated Pi 5, with `RPi.GPIO` (and lgpio, gpiod, gpiozero, smbus2, spidev, pyserial) replaced by stubs — see the [Emulator reference](emulator.md#hardware-stubs). With `--gpio-mqtt localhost`, press `p4n4_button_handler.py`'s button on GPIO 27 with `mosquitto_pub -t emu/gpio/27/set -m 0` and release it with `-m 1`; the LED's level is published on `emu/gpio/17/state`. Two presses within 0.4 s count as a double press.

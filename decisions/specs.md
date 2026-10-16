@@ -1,7 +1,7 @@
 # p4n4 — Specifications Roadmap
 
-**Version:** 0.1-draft
-**Status:** Living document
+**Version:** 0.1-draft8
+**Status:** Living document (status checked against the code on 2026-10-14)
 **Maintained in:** [raisga/p4n4-docs](https://github.com/raisga/p4n4-docs)
 
 ---
@@ -31,6 +31,7 @@ This document is the canonical specifications roadmap for the p4n4 platform. It 
 
 - Acceptance criteria under `PLANNED` phases are binding requirements for that release.
 - Items under `FUTURE` phases are architectural intent; details will be refined as prior phases complete.
+- **Status pass (2026-10-14):** every feature's status and every acceptance criterion was checked against the code (CLI 0.3.x, p4n4-lib 0.4.0, the stacks after [ADR-005](adr/ADR-005.md)). `[x]` is met; `[ ]` is open, with a note when the code went another way. Statuses: **Done** (all criteria met, or met in substance), **Partial** (shipped with open criteria), **Merged** / **Superseded** (replaced by something else), **Not started**.
 - This document does not replace architectural rationale (see [`design.md`](design.md)) or multi-repo structure decisions (see [`../reference/architecture.md`](../reference/architecture.md)).
 
 **Relationship to other documents:**
@@ -53,12 +54,14 @@ This document is the canonical specifications roadmap for the p4n4 platform. It 
 
 | Version | Status  | Theme                    | Primary Repos Touched                          |
 |---------|---------|--------------------------|------------------------------------------------|
-| v0.1    | PLANNED | Foundation               | p4n4-cli, p4n4-iot, p4n4-ai, p4n4-edge        |
-| v0.2    | FUTURE  | Intelligence Layer       | p4n4-cli, p4n4-ai, p4n4-templates              |
-| v0.3    | FUTURE  | Scale & Extensibility    | p4n4-cli, p4n4-iot, p4n4-ai, p4n4-helm (new)  |
+| v0.1    | SHIPPED (CLI 0.1.0), with open criteria | Foundation | p4n4-cli, p4n4-iot, p4n4-ai, p4n4-edge |
+| v0.2    | PARTLY BUILT: CLI 0.2.0 shipped another scope; System 1 (F-0.2.7) in CLI 0.3.0 | Intelligence Layer | p4n4-cli, p4n4-ai, p4n4-templates |
+| v0.3    | FUTURE (CLI 0.3.0 is the System 1 release, not this milestone) | Scale & Extensibility | p4n4-cli, p4n4-iot, p4n4-ai, p4n4-helm (new) |
 | v1.0    | FUTURE  | Production Stability     | all repos                                      |
 
-> **Current priority:** Deliver a functional `p4n4` CLI installable via `pip install p4n4` that can scaffold, start, and stop the IoT, GenAI, and Edge AI stacks. Everything in Phase 1 is in scope for v0.1. Nothing has been built yet — all features start from zero.
+> **Current priority:** Deliver a functional `p4n4` CLI installable via `pip install p4n4` that can scaffold, start, and stop the IoT, GenAI, and Edge AI stacks. Everything in Phase 1 is in scope for v0.1. (Written before v0.1; the status notes below record what has shipped since.)
+
+> **Status (ADR-005):** the Edge AI stack merged into `p4n4-ai` as its `ei-runner` service and profile, and `p4n4-edge` became `p4n4-extras`, an opt-in layer for optional services. The core is two stacks, iot and ai. Rows below that name `p4n4-edge` are the original plan; its features now live in `p4n4-ai`.
 
 ### 2.2 CLI-to-Stack Compatibility Matrix
 
@@ -66,8 +69,8 @@ Each stack repo uses independent semver. The `p4n4-cli` `compat.py` module enfor
 
 > **Status (CLI 0.2.0):** planned, not implemented. There is no `compat.py` yet, and the stack repos don't tag releases: `p4n4 init` scaffolds each stack from its `main` branch. The matrix below is the target contract.
 
-| CLI Version | p4n4-iot | p4n4-ai  | p4n4-edge |
-|-------------|----------|----------|-----------|
+| CLI Version | p4n4-iot | p4n4-ai  | p4n4-extras (was p4n4-edge) |
+|-------------|----------|----------|-----------------------------|
 | 0.1.x       | >=0.1.0  | >=0.1.0  | >=0.1.0   |
 | 0.2.x       | >=0.1.0  | >=0.2.0  | >=0.1.0   |
 | 0.3.x       | >=0.3.0  | >=0.3.0  | >=0.1.0   |
@@ -87,7 +90,7 @@ Each stack repo uses independent semver. The `p4n4-cli` `compat.py` module enfor
 v0.1 Foundation (planned — no external dependencies)
 ├── [F-0.1.1] p4n4-iot compose stack
 ├── [F-0.1.2] p4n4-ai compose stack ──────────── requires: F-0.1.1 (p4n4-net bridge)
-├── [F-0.1.3] p4n4-edge compose stack ─────────── requires: F-0.1.1 (p4n4-net bridge)
+├── [F-0.1.3] p4n4-edge compose stack ─────────── requires: F-0.1.1 (p4n4-net bridge)  (now p4n4-ai's ei-runner, ADR-005)
 ├── [F-0.1.4] p4n4-cli core (init/up/down/status/validate)
 ├── [F-0.1.5] Secret management (p4n4 secret)
 ├── [F-0.1.6] Project manifest (.p4n4.json)
@@ -99,7 +102,8 @@ v0.2 Intelligence Layer
 ├── [F-0.2.3] n8n workflow library expansion ────── requires: F-0.1.2
 ├── [F-0.2.4] p4n4 ei subcommands ─────────────── requires: F-0.1.3, F-0.1.4
 ├── [F-0.2.5] Template registry v2 ────────────── requires: F-0.1.6
-└── [F-0.2.6] Official community templates ──────── requires: F-0.2.5
+├── [F-0.2.6] Official community templates ──────── requires: F-0.2.5
+└── [F-0.2.7] System 1 typed decisions ──────────── requires: F-0.1.2
 
 v0.3 Scale & Extensibility
 ├── [F-0.3.1] Multi-site federation ────────────── requires: F-0.2.3, F-0.2.1
@@ -116,7 +120,7 @@ v0.3 Scale & Extensibility
 | Feature ID | Name                          | Depends On              | Blocks                  |
 |------------|-------------------------------|-------------------------|-------------------------|
 | F-0.1.1    | p4n4-iot stack                | —                       | F-0.1.2, F-0.1.3, F-0.2.2, F-0.3.2, F-0.3.4, F-0.3.5 |
-| F-0.1.2    | p4n4-ai stack                 | F-0.1.1                 | F-0.2.1, F-0.2.2, F-0.2.3, F-0.3.2, F-0.3.5 |
+| F-0.1.2    | p4n4-ai stack                 | F-0.1.1                 | F-0.2.1, F-0.2.2, F-0.2.3, F-0.2.7, F-0.3.2, F-0.3.5 |
 | F-0.1.3    | p4n4-edge stack               | F-0.1.1                 | F-0.2.4, F-0.3.5        |
 | F-0.1.4    | CLI core                      | —                       | F-0.2.4, F-0.3.7        |
 | F-0.1.5    | Secret management             | F-0.1.4                 | —                       |
@@ -128,6 +132,7 @@ v0.3 Scale & Extensibility
 | F-0.2.4    | p4n4 ei subcommands           | F-0.1.3, F-0.1.4        | —                       |
 | F-0.2.5    | Template registry v2          | F-0.1.6                 | F-0.2.6                 |
 | F-0.2.6    | Official community templates  | F-0.2.5                 | —                       |
+| F-0.2.7    | System 1 typed decisions      | F-0.1.2                 | F-0.2.2, F-0.2.3        |
 | F-0.3.1    | Multi-site federation         | F-0.2.3, F-0.2.1        | —                       |
 | F-0.3.2    | OpenTelemetry integration     | F-0.1.1, F-0.1.2        | F-0.3.3                 |
 | F-0.3.3    | Embedding pipeline            | F-0.2.1, F-0.3.2        | —                       |
@@ -138,21 +143,23 @@ v0.3 Scale & Extensibility
 
 ---
 
-## 4. Phase 1: Foundation (v0.1) — PLANNED
+## 4. Phase 1: Foundation (v0.1) — SHIPPED, WITH OPEN CRITERIA
 
-**Priority order within this phase:** The CLI package (F-0.1.4, F-0.1.6, F-0.1.7) and the three compose stacks (F-0.1.1–F-0.1.3) are the core deliverables. Secret management (F-0.1.5) ships alongside the CLI. Nothing in this phase exists yet.
+**Priority order within this phase:** The CLI package (F-0.1.4, F-0.1.6, F-0.1.7) and the three compose stacks (F-0.1.1–F-0.1.3) are the core deliverables. Secret management (F-0.1.5) ships alongside the CLI.
+
+> **Status (2026-10-14):** all seven features exist; the stacks and PyPI publish are done. The open criteria are mostly where the CLI went another way: it scaffolds from the stack repos instead of bundled Jinja2 templates, records `layers` instead of `stacks`, and `add` / `remove` are still stubs.
 
 ### 4.1 Release Summary
 
 | Feature ID | Name                       | Repo(s)           | Priority | Status  |
 |------------|----------------------------|-------------------|----------|---------|
-| F-0.1.4    | CLI core commands          | p4n4-cli          | 1 — High | Planned |
-| F-0.1.6    | Project manifest           | p4n4-cli          | 1 — High | Planned |
-| F-0.1.7    | PyPI publish               | p4n4-cli          | 1 — High | Planned |
-| F-0.1.1    | p4n4-iot compose stack     | p4n4-iot          | 2 — High | Planned |
-| F-0.1.2    | p4n4-ai compose stack      | p4n4-ai           | 2 — High | Planned |
-| F-0.1.3    | p4n4-edge compose stack    | p4n4-edge         | 2 — High | Planned |
-| F-0.1.5    | Secret management          | p4n4-cli          | 3 — Med  | Planned |
+| F-0.1.4    | CLI core commands          | p4n4-cli          | 1 — High | Partial (7 of 10 criteria) |
+| F-0.1.6    | Project manifest           | p4n4-cli          | 1 — High | Partial (another schema; `add` / `remove` stubs) |
+| F-0.1.7    | PyPI publish               | p4n4-cli          | 1 — High | Done (`p4n4` 0.1.0 – 0.3.0 on PyPI) |
+| F-0.1.1    | p4n4-iot compose stack     | p4n4-iot          | 2 — High | Done |
+| F-0.1.2    | p4n4-ai compose stack      | p4n4-ai           | 2 — High | Done (one criterion reworded by the code) |
+| F-0.1.3    | p4n4-edge compose stack    | p4n4-ai (`ei-runner`) | 2 — High | Done; merged into p4n4-ai (ADR-005) |
+| F-0.1.5    | Secret management          | p4n4-cli          | 3 — Med  | Partial (4 of 5 criteria) |
 
 ---
 
@@ -178,20 +185,22 @@ v0.3 Scale & Extensibility
 
 1. Start `p4n4-iot` → poll Docker healthchecks until Mosquitto and InfluxDB are healthy.
 2. Start `p4n4-ai` → poll until Ollama and Letta respond to HTTP health endpoints.
-3. Start `p4n4-edge` → no dependency polling required.
+3. Start `p4n4-extras` (when it has a service enabled) → no dependency polling required.
+
+> **Status (CLI 0.4.0):** `p4n4 up` starts the layers in this order with `docker compose up -d` (iot → ai → extras → dashboard), creating `p4n4-net` when it's missing and skipping a layer with nothing enabled. It doesn't poll healthchecks between stages; Compose's `depends_on` orders the services inside each stack.
 
 **Acceptance Criteria:**
 
-- [ ] `p4n4 init PATH` scaffolds all selected stack `docker-compose.yml` and `.env.example` files using bundled Jinja2 templates without any network access.
-- [ ] `p4n4 init` prompts for project name, selects stacks interactively, and writes a valid `.p4n4.json` manifest.
-- [ ] `p4n4 init --layer all` scaffolds the iot, ai and edge stacks; the manifest lists only layers that were scaffolded, and unknown layer names are rejected.
-- [ ] `p4n4 init` accepts `--source-iot`, `--source-ai` and `--source-edge` to scaffold from local checkouts instead of cloning.
-- [ ] `p4n4 up` without arguments starts stacks in the defined order, polling Docker healthchecks between stages.
-- [ ] `p4n4 down --volumes` removes named volumes as well as containers.
-- [ ] `p4n4 status` prints a Rich table with columns: container name, image, status, ports.
-- [ ] `p4n4 validate` exits non-zero and prints actionable error messages for each missing required `.env` variable.
-- [ ] `p4n4 logs STACK` streams docker compose logs for the specified stack.
-- [ ] All commands exit `0` on success and non-zero on failure, with human-readable Rich error output.
+- [ ] `p4n4 init PATH` scaffolds all selected stack `docker-compose.yml` and `.env.example` files using bundled Jinja2 templates without any network access. *Superseded: `init` copies each layer from its stack repo (`git clone --depth 1`); `--source-<layer>` works offline from a local checkout.*
+- [ ] `p4n4 init` prompts for project name, selects stacks interactively, and writes a valid `.p4n4.json` manifest. *Partly: the name is an argument and the layers come from `--layer`; the wizard prompts for the org, timezone, passwords, an external broker and the inference runner, and writes the manifest.*
+- [x] `p4n4 init --layer all` scaffolds the iot, ai and dashboard layers, with the ai layer's inference runner enabled (`all,extras` adds the optional extras layer); the manifest lists only layers that were scaffolded, and unknown layer names (and the legacy `edge`) are rejected.
+- [x] `p4n4 init` accepts `--source-iot`, `--source-ai`, `--source-extras` and `--source-dashboard` to scaffold from local checkouts instead of cloning.
+- [ ] `p4n4 up` without arguments starts stacks in the defined order, polling Docker healthchecks between stages. *Partly: the order holds; there is no polling between stacks (see the status note above).*
+- [x] `p4n4 down --volumes` removes named volumes as well as containers (after a confirmation).
+- [ ] `p4n4 status` prints a Rich table with columns: container name, image, status, ports. *Partly: one table per stack with service, status, health and ports; no image column.*
+- [x] `p4n4 validate` exits non-zero and prints actionable error messages for each missing required `.env` variable (`<layer>/.env missing required key: …`).
+- [x] `p4n4 logs STACK` streams docker compose logs for the specified stack (as `p4n4 logs [SERVICE] --stack STACK`).
+- [x] All commands exit `0` on success and non-zero on failure, with human-readable Rich error output.
 
 ---
 
@@ -210,11 +219,11 @@ p4n4 secret generate      # Prints fresh secrets to stdout; does NOT write .env
 
 **Acceptance Criteria:**
 
-- [ ] `p4n4 secret show` prints a Rich table with columns: variable name, masked value (`****`), stack, and whether the variable is a cross-stack shared secret.
-- [ ] `p4n4 secret rotate` prompts for confirmation before overwriting any `.env` file.
-- [ ] `p4n4 secret rotate` generates all secrets using `secrets.token_urlsafe(32)` or equivalent.
-- [ ] `p4n4 secret generate` writes nothing to disk; all output goes to stdout only.
-- [ ] `.env` files are never committed (confirmed by `.gitignore` entries in scaffolded projects).
+- [ ] `p4n4 secret show` prints a Rich table with columns: variable name, masked value (`****`), stack, and whether the variable is a cross-stack shared secret. *Partly: key, masked value and (in multi-layer projects) stack; no shared-secret column. External secrets (`MQTT_REMOTE_PASSWORD`) are listed fully masked.*
+- [x] `p4n4 secret rotate` prompts for confirmation before overwriting any `.env` file.
+- [x] `p4n4 secret rotate` generates all secrets using `secrets.token_urlsafe(32)` or equivalent (`secrets.token_hex`; only the secrets services read at every start, see the [Security guide](../guides/security.md#secret-rotation)).
+- [x] `p4n4 secret generate` writes nothing to disk; all output goes to stdout only.
+- [x] `.env` files are never committed (confirmed by `.gitignore` entries in scaffolded projects): `p4n4 init` writes a project `.gitignore` covering every layer (CLI 0.4.0; tested with `git check-ignore`).
 
 ---
 
@@ -222,6 +231,8 @@ p4n4 secret generate      # Prints fresh secrets to stdout; does NOT write .env
 
 **Repo:** `p4n4-cli`
 **Description:** The `.p4n4.json` manifest records which stacks are enabled, the project name, and the CLI version used for scaffolding. It is the machine-readable project identity file.
+
+> **Status (2026-10-14):** the CLI writes `{"schema_version": 1, "project", "layers", "created_at"}`, plus a `template` object (`name`, `version`) in a project made from a template and an optional `dashboard` block (§8.1). There is no `version` or `cli_version`, and no published JSON Schema; `p4n4_lib.manifest` and `validate` check it.
 
 **Schema (`manifest-v1.json`):**
 
@@ -239,25 +250,25 @@ p4n4 secret generate      # Prints fresh secrets to stdout; does NOT write .env
 
 **Acceptance Criteria:**
 
-- [ ] Every `p4n4 init` run writes a `.p4n4.json` at the project root that validates against `manifest-v1.json` schema.
-- [ ] `p4n4 add STACK` appends the stack name to the `stacks` array and is idempotent.
-- [ ] `p4n4 remove STACK` removes the stack name from the `stacks` array.
-- [ ] `p4n4 validate` fails with exit code `2` if `.p4n4.json` is absent.
-- [ ] `cli_version` is set to the installed CLI version at scaffold time and never auto-updated on subsequent commands.
+- [ ] Every `p4n4 init` run writes a `.p4n4.json` at the project root that validates against `manifest-v1.json` schema. *Partly: every `init` writes one, in the schema of the status note above.*
+- [ ] `p4n4 add STACK` appends the stack name to the `stacks` array and is idempotent. *Open: `p4n4 add` is a stub.*
+- [ ] `p4n4 remove STACK` removes the stack name from the `stacks` array. *Open: `p4n4 remove` is a stub.*
+- [ ] `p4n4 validate` fails with exit code `2` if `.p4n4.json` is absent. *Partly: it fails with exit code `1` and says to run `p4n4 init` (§8.4).*
+- [ ] `cli_version` is set to the installed CLI version at scaffold time and never auto-updated on subsequent commands. *Open: not recorded.*
 
 ---
 
 ### F-0.1.7 — PyPI Publish
 
 **Repo:** `p4n4-cli`
-**Description:** The `p4n4` package is published to PyPI via the `publish.yml` GitHub Actions workflow, triggered on `git tag v*` pushes.
+**Description:** The `p4n4` package is published to PyPI via the `publish.yml` GitHub Actions workflow, triggered on `git tag v*` pushes. *(It triggers on a published GitHub release.)*
 
 **Acceptance Criteria:**
 
-- [ ] `pip install p4n4` on Python 3.11, 3.12, and 3.13 succeeds.
-- [ ] `p4n4 --version` returns the correct version string matching `pyproject.toml`.
-- [ ] The `publish.yml` workflow triggers only on tag pushes matching `v*`.
-- [ ] The package bundles all Jinja2 templates as package data (accessible offline after install).
+- [x] `pip install p4n4` on Python 3.11, 3.12, and 3.13 succeeds (0.1.0 – 0.3.0 on PyPI, `requires-python >=3.11`; CI tests all three).
+- [x] `p4n4 --version` returns the correct version string matching `pyproject.toml` (`p4n4/__init__.py` holds the same value, bumped by hand).
+- [ ] The `publish.yml` workflow triggers only on tag pushes matching `v*`. *Superseded: it triggers on a published GitHub release (`gh release create`), which creates the tag.*
+- [ ] The package bundles all Jinja2 templates as package data (accessible offline after install). *Superseded: there are no templates to bundle (F-0.1.4); offline scaffolding uses `--source-<layer>`.*
 
 ---
 
@@ -268,18 +279,18 @@ p4n4 secret generate      # Prints fresh secrets to stdout; does NOT write .env
 
 **Acceptance Criteria:**
 
-- [ ] `docker compose up` in `p4n4-iot/` starts all four services (Mosquitto, Node-RED, InfluxDB, Grafana) without errors.
-- [ ] Mosquitto binds to port 1883 (TCP) and 9001 (WebSocket) on the host.
-- [ ] Node-RED UI is reachable at `http://localhost:1880`.
-- [ ] The Node-RED editor and Admin API require a login, checked against `NODE_RED_USER` and `NODE_RED_PASSWORD`; with no password set, every login is refused.
-- [ ] Deploying from the Node-RED editor saves to the project's `config/node-red/flows/flows.json` (Compose mounts the `flows/` directory, not the file).
-- [ ] Node-RED writes to the InfluxDB org and buckets set in `.env` (`INFLUXDB_ORG`, `INFLUXDB_BUCKET`, `INFLUXDB_SANDBOX_BUCKET`), and failed writes reach a Catch node.
-- [ ] Node-RED stores telemetry and inference results as described in §8.6, and the provisioned *Sensor Data* panel plots one series per device and sensor.
-- [ ] InfluxDB UI is reachable at `http://localhost:8086`.
-- [ ] Grafana UI is reachable at `http://localhost:3000`.
-- [ ] Docker bridge network `p4n4-net` with subnet `172.20.0.0/16` is created when the stack starts.
-- [ ] All services are joined to `p4n4-net` and can reach each other by Docker DNS name.
-- [ ] A `.env.example` is committed with all required variable names and placeholder values; no real secrets are committed.
+- [x] `docker compose up` in `p4n4-iot/` starts all four services (Mosquitto, Node-RED, InfluxDB, Grafana) without errors (they're its default `COMPOSE_PROFILES`; Telegraf is opt-in).
+- [x] Mosquitto binds to port 1883 (TCP) and 9001 (WebSocket) on the host.
+- [x] Node-RED UI is reachable at `http://localhost:1880`.
+- [x] The Node-RED editor and Admin API require a login, checked against `NODE_RED_USER` and `NODE_RED_PASSWORD`; with no password set, every login is refused.
+- [x] Deploying from the Node-RED editor saves to the project's `config/node-red/flows/flows.json` (Compose mounts the `flows/` directory, not the file).
+- [x] Node-RED writes to the InfluxDB org and buckets set in `.env` (`INFLUXDB_ORG`, `INFLUXDB_BUCKET`, `INFLUXDB_SANDBOX_BUCKET`), and failed writes reach a Catch node.
+- [x] Node-RED stores telemetry and inference results as described in §8.6, and the provisioned *Sensor Data* panel plots one series per device and sensor.
+- [x] InfluxDB UI is reachable at `http://localhost:8086`.
+- [x] Grafana UI is reachable at `http://localhost:3000`.
+- [x] Docker bridge network `p4n4-net` with subnet `172.20.0.0/16` is created when the stack starts.
+- [x] All services are joined to `p4n4-net` and can reach each other by Docker DNS name (`p4n4-mqtt`, `p4n4-influxdb`, …).
+- [x] A `.env.example` is committed with all required variable names and placeholder values; no real secrets are committed.
 
 ---
 
@@ -290,30 +301,32 @@ p4n4 secret generate      # Prints fresh secrets to stdout; does NOT write .env
 
 **Acceptance Criteria:**
 
-- [ ] `docker compose up` in `p4n4-ai/` starts all three services (Ollama, Letta, n8n) without errors when `p4n4-net` exists.
-- [ ] Ollama API is reachable at `http://localhost:11434`.
-- [ ] Letta API is reachable at `http://localhost:8283`.
-- [ ] n8n UI is reachable at `http://localhost:5678`.
-- [ ] All services resolve `influxdb`, `mosquitto`, and `nodered` hostnames via Docker DNS.
-- [ ] The stack declares `p4n4-net` as `external: true` and fails with a descriptive error if the network does not exist.
-- [ ] Four starter n8n workflow JSON files are bundled in `config/n8n/workflows/`: `alert-enrichment.json`, `scheduled-digest.json`, `device-onboarding.json`, `incident-escalation.json`.
+- [x] `docker compose up` in `p4n4-ai/` starts all three services (Ollama, Letta, n8n) without errors when `p4n4-net` exists (with `COMPOSE_PROFILES=ollama,letta,n8n`; the default is Ollama alone).
+- [x] Ollama API is reachable at `http://localhost:11434` (published on `127.0.0.1`).
+- [x] Letta API is reachable at `http://localhost:8283` (published on `127.0.0.1`).
+- [x] n8n UI is reachable at `http://localhost:5678`.
+- [ ] All services resolve `influxdb`, `mosquitto`, and `nodered` hostnames via Docker DNS. *Reworded by the code: the IoT services are reached by container name, `p4n4-influxdb`, `p4n4-mqtt` and `p4n4-node-red` (Compose's service-name aliases are `influxdb`, `mqtt` and `node-red`).*
+- [x] The stack declares `p4n4-net` as `external: true` and fails with a descriptive error if the network does not exist (Compose's "network p4n4-net declared as external, but could not be found"; `p4n4 up` creates it first).
+- [x] Four starter n8n workflow JSON files are bundled in `config/n8n/workflows/`: `alert-enrichment.json`, `scheduled-digest.json`, `device-onboarding.json`, `incident-escalation.json` (plus `operator-intake.json` and `system1-drift.json`, F-0.2.7).
 
 ---
 
 ### F-0.1.3 — p4n4-edge Compose Stack
 
-**Repo:** `p4n4-edge`
-**Description:** Docker Compose stack running the p4n4 inference runner, which loads an Edge Impulse `.eim` model or an ONNX model (or simulates results in mock mode). Fully independent; attaches to `p4n4-net` but does not require any other p4n4 stack to function.
+> **Status (ADR-005):** merged into `p4n4-ai` as the `ei-runner` service and profile; the criteria below now apply to it there, and were checked there on 2026-10-14 (build, `/health`, `/api/v1/info`, `/api/v1/infer`, an MQTT sample and its result). The `p4n4-edge` repository became `p4n4-extras`.
+
+**Repo:** `p4n4-ai` (was `p4n4-edge`)
+**Description:** The p4n4 inference runner, which loads an Edge Impulse `.eim` model or an ONNX model (or simulates results in mock mode). It needs no other AI stack service; it attaches to `p4n4-net` and needs an MQTT broker.
 
 **Acceptance Criteria:**
 
-- [ ] `docker compose up` in `p4n4-edge/` starts the Edge Impulse runner without errors when `p4n4-net` exists.
-- [ ] Runner HTTP API is reachable at `http://localhost:8080` and serves `GET /health`, `GET /api/v1/info` and `POST /api/v1/infer` (§8.5, F-0.2.4).
-- [ ] Read-only bind-mounts at `./edge-impulse/models/` and `./onnx/models/` are available for `.eim` and `.onnx` model files.
-- [ ] The runner subscribes to `sensors/+/raw` and publishes each result to `inference/<device-id>/result` (§8.6).
-- [ ] After changing the model file or backend in `.env`, `make up` recreates the runner so the change applies (`docker compose restart` keeps the old environment).
-- [ ] The stack attaches to `p4n4-net` as `external: true`.
-- [ ] `.env.example` includes `EI_API_KEY` placeholder.
+- [x] `docker compose up` in `p4n4-ai/` with `ei-runner` in `COMPOSE_PROFILES` starts the runner without errors when `p4n4-net` exists.
+- [x] Runner HTTP API is reachable at `http://localhost:8080` and serves `GET /health`, `GET /api/v1/info` and `POST /api/v1/infer` (§8.5, F-0.2.4).
+- [x] Read-only bind-mounts at `./edge-impulse/models/` and `./onnx/models/` are available for `.eim` and `.onnx` model files.
+- [x] The runner subscribes to `sensors/+/raw` and publishes each result to `inference/<device-id>/result` (§8.6).
+- [x] After changing the model file or backend in `.env`, `make up` recreates the runner so the change applies (`docker compose restart` keeps the old environment).
+- [x] The stack attaches to `p4n4-net` as `external: true`.
+- [x] `.env.example` includes `EI_API_KEY` placeholder.
 
 ---
 
@@ -324,7 +337,7 @@ The following are explicit non-goals for v0.1. Their absence is not a defect.
 - No TLS termination wizard; users must configure a reverse proxy manually.
 - No multi-site federation; single-node deployment only.
 - No Kubernetes or Helm chart support.
-- No shell tab-completion.
+- Shell completion is only Typer's generic `--install-completion` (F-0.3.7).
 - No embedding or semantic search pipeline.
 - The `p4n4 ei` subcommands are not yet implemented: `ei deploy`, `ei run` and `ei status` exist as stubs that exit non-zero, and `ei infer` and `ei list` don't exist. The runner's inference API (§8.5) is available.
 - Template registry is read-only; no `p4n4 template push` command.
@@ -333,31 +346,34 @@ The following are explicit non-goals for v0.1. Their absence is not a defect.
 
 ### 4.3 v0.1 Test Requirements
 
-| Test ID  | Scope              | Type        | Command / Assertion                              |
-|----------|--------------------|-------------|--------------------------------------------------|
-| T-0.1.1  | CLI init           | Unit        | `pytest test_init.py`                            |
-| T-0.1.2  | Manifest read/write| Unit        | `pytest test_manifest.py`                        |
-| T-0.1.3  | Secret generation  | Unit        | `pytest test_secret.py`                          |
-| T-0.1.4  | Validate command   | Unit        | `pytest test_validate.py`                        |
-| T-0.1.5  | Compose valid      | Integration | `docker compose config --quiet` (CI, all stacks) |
-| T-0.1.6  | YAML lint          | Static      | `yamllint .` (CI, all stack repos)               |
-| T-0.1.7  | .env coverage      | Static      | `check_env_example.py` (CI, all stack repos)     |
-| T-0.1.8  | PyPI install smoke | Smoke       | `pip install p4n4 && p4n4 --version`             |
+| Test ID  | Scope              | Type        | Command / Assertion                              | Status |
+|----------|--------------------|-------------|--------------------------------------------------|--------|
+| T-0.1.1  | CLI init           | Unit        | `pytest test_init.py`                            | Covered: `cli/tests/test_cli.py` (`test_init_*`) |
+| T-0.1.2  | Manifest read/write| Unit        | `pytest test_manifest.py`                        | Covered: `lib/tests/test_lib.py` (`test_manifest_*`) |
+| T-0.1.3  | Secret generation  | Unit        | `pytest test_secret.py`                          | Covered: `test_cli.py` (`test_secret_*`), `test_lib.py` |
+| T-0.1.4  | Validate command   | Unit        | `pytest test_validate.py`                        | Covered: `test_cli.py` (`test_validate_*`), `test_lib.py` |
+| T-0.1.5  | Compose valid      | Integration | `docker compose config --quiet` (CI, all stacks) | In CI |
+| T-0.1.6  | YAML lint          | Static      | `yamllint .` (CI, all stack repos)               | In CI, on the compose files only |
+| T-0.1.7  | .env coverage      | Static      | `check_env_example.py` (CI, all stack repos)     | In CI |
+| T-0.1.8  | PyPI install smoke | Smoke       | `pip install p4n4 && p4n4 --version`             | Not automated (checked by hand at release) |
 
 ---
 
-## 5. Phase 2: Intelligence Layer (v0.2) — FUTURE
+## 5. Phase 2: Intelligence Layer (v0.2) — PARTLY BUILT
+
+> **Status (2026-10-14):** CLI 0.2.0 shipped another scope (§3.1). Of this phase, System 1 (F-0.2.7) is well along, F-0.2.2 and F-0.2.3 have their baseline, F-0.2.6 is met in substance by other templates, and F-0.2.1, F-0.2.4 and F-0.2.5 haven't started in the CLI (p4n4-api and p4n4-dashboard cover some of F-0.2.1).
 
 ### 5.1 Release Summary
 
 | Feature ID | Name                          | Repo(s)                   | Status |
 |------------|-------------------------------|---------------------------|--------|
-| F-0.2.1    | Letta agent personas          | p4n4-ai, p4n4-cli         | Future |
-| F-0.2.2    | Node-RED AI palette           | p4n4-iot, p4n4-cli        | Future |
-| F-0.2.3    | n8n workflow library          | p4n4-ai                   | Future |
-| F-0.2.4    | p4n4 ei subcommands           | p4n4-cli                  | Future |
-| F-0.2.5    | Template registry v2          | p4n4-cli, p4n4-templates  | Future |
-| F-0.2.6    | Official community templates  | p4n4-templates            | Future |
+| F-0.2.1    | Letta agent personas          | p4n4-ai, p4n4-cli         | Not started (no personas; agents through p4n4-api) |
+| F-0.2.2    | Node-RED AI palette           | p4n4-iot, p4n4-cli        | Partial (`p4n4-system1` only) |
+| F-0.2.3    | n8n workflow library          | p4n4-ai                   | Partial (the four baseline workflows) |
+| F-0.2.4    | p4n4 ei subcommands           | p4n4-cli                  | Not started (stubs; the runner API exists) |
+| F-0.2.5    | Template registry v2          | p4n4-cli, p4n4-templates  | Not started |
+| F-0.2.6    | Official community templates  | p4n4-templates            | Superseded (six other templates) |
+| F-0.2.7    | System 1 typed decisions      | p4n4-ai, p4n4-lib, p4n4-cli, p4n4-iot, p4n4-emu | In progress (S1, S2 and S3 infrastructure built) |
 
 ---
 
@@ -401,6 +417,8 @@ p4n4 ai agent chat <name>       # Interactive chat with an agent
 
 **Acceptance Criteria:**
 
+> **Status (2026-10-14):** not started in the CLI or p4n4-ai: there are no persona files and no `p4n4 ai agent` commands. p4n4-api lists, creates and chats with Letta agents (its `/api/v1/agents` endpoints), and p4n4-dashboard's Agent tab uses them.
+
 - [ ] `p4n4 ai agent list` prints a Rich table with columns: name, status (running/stopped), model, agent ID.
 - [ ] `p4n4 ai agent init site-monitor` creates the agent via `POST /v1/agents` on the Letta API and verifies HTTP 200.
 - [ ] Each persona's system prompt template is stored as a TOML file in `p4n4-ai/letta/agents/<persona-id>.toml` and version-controlled.
@@ -423,13 +441,16 @@ p4n4 ai agent chat <name>       # Interactive chat with an agent
 | `letta-send-event`   | `agent_id`, `payload`    | `payload` (response)  | `POST letta:8283/v1/agents/:id/messages` |
 | `letta-get-memory`   | `agent_id`               | `payload` (memory obj)| `GET letta:8283/v1/agents/:id/memory` |
 | `influx-flux-query`  | `payload` (Flux string)  | `payload` (rows array)| `POST influxdb:8086/api/v2/query`  |
+| `p4n4-system1`       | `payload` (state), `set` | `payload` (answers), `system1` | `POST p4n4-system1:8000/v1/sets/:set` (F-0.2.7, built in S2) |
 
 **Acceptance Criteria:**
 
+> **Status (2026-10-14):** only `p4n4-system1` exists (F-0.2.7 S2), in p4n4-iot's `flows.json`, on Node-RED 5.0. The Ollama, Letta and InfluxDB subflows aren't built.
+
 - [ ] Each subflow is importable via the Node-RED UI (Import > Clipboard) without error on Node-RED 3.x.
 - [ ] `ollama-generate` accepts a `msg.payload` string and returns `msg.payload` as the LLM response string within 60 seconds for a 7B model on reference hardware (8 GB RAM).
-- [ ] All subflows set `msg.error` and nullify `msg.payload` on HTTP error; they do not throw uncaught exceptions.
-- [ ] All subflows are included in the bundled `flows.json` Jinja2 template in `p4n4-cli`.
+- [ ] All subflows set `msg.error` and nullify `msg.payload` on HTTP error; they do not throw uncaught exceptions. *`p4n4-system1` does (checked end to end, F-0.2.7 S2); the others don't exist.*
+- [ ] All subflows are included in the bundled `flows.json` Jinja2 template in `p4n4-cli`. *Superseded: they live in p4n4-iot's `config/node-red/flows/flows.json`, which `init` copies; the CLI renders no templates.*
 - [ ] A smoke-test flow `ai-integration-smoke.json` is committed to `p4n4-iot/config/node-red/` that wires an inject node → `ollama-generate` → debug node and verifies a non-empty response.
 
 ---
@@ -446,17 +467,22 @@ p4n4 ai agent chat <name>       # Interactive chat with an agent
 | `alert-enrichment.json`       | MQTT alert topic      | Ollama            | Enriched alert message       |
 | `scheduled-digest.json`       | Cron                  | Ollama            | Digest via webhook           |
 | `device-onboarding.json`      | MQTT new-device event | (none)            | Device registry entry        |
-| `incident-escalation.json`    | Threshold exceeded    | Ollama            | Routed escalation            |
+| `incident-escalation.json`    | Threshold exceeded    | Rules, System 1 (F-0.2.7), Ollama | Routed escalation |
 | `anomaly-investigation.json`  | Letta alert event     | Ollama + Letta    | Root-cause memo              |
 | `sensor-qa.json`              | Webhook (NL query)    | Ollama + InfluxDB | Natural language answer      |
 | `model-drift-report.json`     | Cron (weekly)         | Ollama            | Drift summary (Markdown)     |
 | `operator-briefing.json`      | Cron (daily)          | Letta (persona)   | Morning status brief         |
 
+`operator-intake.json` (chat messages, System 1, confirmed requests) ships with F-0.2.7 S2 and
+isn't one of the eight.
+
 **Acceptance Criteria:**
 
-- [ ] All 8 workflow JSON files pass a round-trip import via `docker compose exec n8n n8n import:workflow --input=<file>` without error.
-- [ ] All workflows reference credentials by type/name only; no hardcoded tokens or passwords.
-- [ ] Each workflow file includes a top-level `"notes"` field describing purpose, trigger condition, and expected outputs.
+> **Status (2026-10-14):** the four baseline workflows exist, with `operator-intake.json` and `system1-drift.json` outside the eight; the four AI-augmented ones (`anomaly-investigation`, `sensor-qa`, `model-drift-report`, `operator-briefing`) don't.
+
+- [ ] All 8 workflow JSON files pass a round-trip import via `docker compose exec n8n n8n import:workflow --input=<file>` without error. *Partly: six exist, imported with `n8n import:workflow` as the p4n4-ai README describes (fixed IDs, so a re-import updates them); `incident-escalation`, `operator-intake` and `system1-drift` were run end to end on n8n 2.41.6 (F-0.2.7).*
+- [x] All workflows reference credentials by type/name only; no hardcoded tokens or passwords (`p4n4 MQTT`, `p4n4 InfluxDB`, `p4n4 System 1`, …).
+- [ ] Each workflow file includes a top-level `"notes"` field describing purpose, trigger condition, and expected outputs. *Open: none has one; the p4n4-ai README describes each.*
 - [ ] `anomaly-investigation.json` sends a Letta event, receives a Letta agent response, then calls Ollama to synthesise a root-cause note — all within a single n8n workflow execution without manual intervention.
 
 ---
@@ -526,11 +552,13 @@ Response 200 (application/json):
 
 **Acceptance Criteria:**
 
+> **Status (2026-10-14):** not started: `ei deploy`, `run` and `status` are stubs that exit `1`, and the other commands don't exist. The runner's inference API above is built (`POST /api/v1/infer`, `GET /api/v1/info`), and p4n4-api's `/api/v1/inference` endpoints call it. The Makefile covers deploy (`make deploy-model`).
+
 - [ ] `p4n4 ei list` prints a Rich table with columns: filename, file size, last modified; returns a zero-row table with an informational message when no `.eim` files are found.
 - [ ] `p4n4 ei infer sample.csv` sends the file to `:8080/api/v1/infer` and prints classification labels ranked by confidence score.
 - [ ] `p4n4 ei info` prints runner container image tag, backend and model file from `GET /api/v1/info`, and HTTP health check status.
-- [ ] `p4n4 ei update` wraps `docker pull edgeimpulse/linux-runner:latest` and prints the pulled image digest.
-- [ ] All `p4n4 ei` subcommands exit non-zero and print a descriptive error when the edge stack is not running.
+- [ ] `p4n4 ei update` rebuilds the runner image (`docker compose build ei-runner`; p4n4 builds its own runner rather than pulling `edgeimpulse/linux-runner`) and prints the image id.
+- [ ] All `p4n4 ei` subcommands exit non-zero and print a descriptive error when the runner (`ei-runner` in the ai layer) is not running.
 
 ---
 
@@ -575,6 +603,8 @@ Response 200 (application/json):
 
 **Acceptance Criteria:**
 
+> **Status (2026-10-14):** not started: `p4n4 template search`, `install` and `list` are stubs, and there's no `index.json`. The registry is p4n4-templates' `projects/`, each with a `template.yaml` (§8.2); templates are copied as a project root.
+
 - [ ] `p4n4 template search` fetches `index.json` from the configured registry URL and displays results in a Rich table with columns: name, description, tags, version, author.
 - [ ] `p4n4 template search --tag manufacturing` filters results to templates containing that tag.
 - [ ] `p4n4 template pull factory-baseline` clones the template subdir, renders Jinja2 templates, and merges generated files into the project directory without overwriting an existing `.env`.
@@ -599,10 +629,64 @@ Response 200 (application/json):
 
 **Acceptance Criteria:**
 
+> **Status (2026-10-14):** superseded by six other official templates (`mqtt-influx-grafana`, `mqtt-nodered-influx-grafana`, `mqtt-influx-grafana-ollama`, `mqtt-influx-grafana-ollama-letta`, `mqtt-influx-grafana-n8n`, `mqtt-influx-grafana-ollama-go2rtc`), validated by `scripts/validate.py` and each smoke-tested in CI. `factory-baseline`, `iot-minimal` and `greenhouse-control` don't exist; `factory-baseline` is on the [template roadmap](https://github.com/raisga/p4n4-templates/blob/main/docs/roadmap.md).
+
 - [ ] All three templates pass `validate_templates.py` CI without errors.
 - [ ] Each template's `p4n4-template.toml` declares `requires.cli = ">=0.2.0"`.
 - [ ] The `greenhouse-control` template includes at least one pre-built Node-RED flow that uses the `ollama-generate` subflow from F-0.2.2.
-- [ ] All template `README.md` files document expected MQTT topics, required environment variables, and (if applicable) the required Edge Impulse model.
+- [x] All template `README.md` files document expected MQTT topics, required environment variables, and (if applicable) the required Edge Impulse model (true of the six that exist).
+
+---
+
+### F-0.2.7 — System 1 Typed Decisions
+
+**Repos:** `p4n4-ai`, `p4n4-lib`, `p4n4-cli`, `p4n4-iot`, `p4n4-emu`
+**Design:** [`system1.md`](system1.md) (the spike, the thirteen rules of use and the phases) and [ADR-004](adr/ADR-004.md)
+**Description:** An opt-in `system1` service in the ai stack runs [laya](https://huggingface.co/convaiinnovations/laya), a small encoder that picks one option from a closed menu in a fraction of a second, on the CPU next to Ollama. It routes where the rules have no answer and abstains when unsure; it never decides severity, safety or actuation. Rules decide, System 1 routes, System 2 (Ollama, Letta) explains.
+
+**S1 deliverables (system1.md §11.1):**
+
+| Repo | Deliverable |
+|------|-------------|
+| `p4n4-ai` | `system1/`: the image (laya 0.4.6, hashed locks per architecture, base image and file hashes pinned), the wrapper, the regression suite and its CI (native amd64 and arm64, GHCR with SBOM and provenance on `system1-v*` tags) |
+| `p4n4-ai` | `system1` and `system1-pull` Compose services, the `.env.example` block, `make system1-pull` / `-build` / `-lock` / `-test` |
+| `p4n4-ai` | `config/system1/questions/incident-triage.json` v3 and its evaluation file; `incident-escalation.json` v2 |
+| `p4n4-iot` | The Node-RED `System 1 Decision Log` tab: `system1/decisions/#` → `system1_decision` points in `ai_events` |
+| `p4n4-lib` | `p4n4_lib.system1` (sets, metrics and gates, threshold and temperature fitting, decision log); `SYSTEM1_API_KEY` rotatable |
+| `p4n4-cli` | `p4n4 ai system1 enable/disable/pull/status/decide/eval`; the key in `init`; the n8n credential, refreshed by `secret rotate` |
+
+**Acceptance Criteria (S1 exit, system1.md §11.2):**
+
+- [ ] On a native Raspberry Pi 5, `incident-triage` requests of up to 200 input tokens have a p95 latency of at most 1.5 s within the 2 GiB limit.
+- [ ] The regression suite passes on native amd64 and arm64 (amd64 passes locally; arm64 needs the CI runner or a Pi).
+- [ ] The `incident-triage` gates pass on at least 50 examples from a real site. (They pass on the shipped generic file of 62.)
+- [x] With System 1 stopped, slow, unauthorised or abstaining, every critical alert is still escalated (checked end to end with n8n 2.41.6, including a 30-alert storm).
+- [x] A modified weights file stops the service at start-up (the regression suite checks the weights and a tokenizer file).
+
+**S2 deliverables (system1.md §11, §15):**
+
+| Repo | Deliverable |
+|------|-------------|
+| `p4n4-ai` | `operator-intake.json` v3 (`intent`, `asset`) and its English and Spanish evaluation file; `operator-intake.json` n8n workflow (MQTT and a Header Auth webhook in, buttons, confirmation, feedback); `GET /v1/sets` and per-question temperatures in the wrapper |
+| `p4n4-iot` | The `p4n4-system1` subflow (F-0.2.2); `system1/feedback/#` → `system1_feedback` points, and opted-in examples kept in Node-RED's volume; Grafana's System 1 dashboard; `SYSTEM1_API_KEY` for Node-RED |
+| `p4n4-lib` | Per-language metrics and gates, per-question temperature fitting, feedback messages and examples; `OPERATOR_INTAKE_TOKEN` rotatable |
+| `p4n4-cli` | `p4n4 ai system1 feedback`; `eval` per language and per question; `status` against `GET /v1/sets`; both n8n credentials; the key in the iot layer |
+| `p4n4-emu` | A fixed 2 GiB / 2 CPU size for `system1`, run native on emulated boards |
+
+**Acceptance Criteria (S2 exit, system1.md §11.2):**
+
+- [ ] The intake gates pass on a site's file, in every language the site uses. (They pass in English and Spanish on the shipped generic file of 64.)
+- [x] The subflow follows the failure contract of F-0.2.2 (checked end to end: no key, a bad or unknown set, no state, a 422, the service down, a timeout).
+- [x] The harness tools appear in the ai-harness tool table, with their definitions.
+
+**S3 (system1.md §16):** site calibration (`SYSTEM1_CALIBRATION`, `eval --save-calibration`), Grafana drift alerts to n8n's `system1-drift.json` and `system1/drift/<set>`, `p4n4 ai system1 label` (U7), and a ranking gate (`eval.rank`, `min_auc`). The U3–U6 sets fail their gates on the base checkpoints and are kept as drafts for S4.
+
+- [ ] Each new set passes its gates (none of the four drafts does).
+- [x] The drift alerts fire when a recorded log with a shifted mix is replayed (all three, through Node-RED, Grafana 13.0 and n8n; a steady log beside it stays Normal).
+
+**S4 (system1.md §17):** `make system1-train` and `stacks/ai/system1/train/` (a generic synthetic corpus for every set, `laya.train` on the CPU, a judge against the base on the held-out files, a model card and `pin.py`), and `SYSTEM1_REPO` for a fine-tuned checkpoint in a repository p4n4 controls. `operator-intake` v4 raises the intent threshold to 0.95.
+
+- [ ] A fine-tuned checkpoint beats the base checkpoint on a held-out site file, with the same pins. (It beats the base on every set's generic held-out file; no site file exists yet, and the pins wait for the push to p4n4's repository.)
 
 ---
 
@@ -610,12 +694,14 @@ Response 200 (application/json):
 
 **Milestone is closed when ALL of the following are true:**
 
-- [ ] All six features (F-0.2.1 through F-0.2.6) have all acceptance criteria met.
-- [ ] `p4n4-cli`: `__version__` and `pyproject.toml` bumped to `0.2.0`.
-- [ ] `p4n4-cli`: `CHANGELOG.md` updated.
-- [ ] `p4n4-cli`: `compat.py` updated with `"ai": ">=0.2.0"`.
+> **Status (2026-10-14):** open. CLI 0.2.0 was released with another scope (§3.1), so the version items below are ticked for that release, not for this milestone.
+
+- [ ] All seven features (F-0.2.1 through F-0.2.7) have all acceptance criteria met.
+- [x] `p4n4-cli`: `__version__` and `pyproject.toml` bumped to `0.2.0`.
+- [x] `p4n4-cli`: `CHANGELOG.md` updated.
+- [ ] `p4n4-cli`: `compat.py` updated with `"ai": ">=0.2.0"`. *Superseded: there is no `compat.py` (§2.2).*
 - [ ] `p4n4-ai`: tagged `v0.2.0`.
-- [ ] `p4n4-templates`: `index.json` updated to `index_version: "2"`.
+- [ ] `p4n4-templates`: `index.json` updated to `index_version: "2"`. *Superseded: no `index.json` (F-0.2.5).*
 - [ ] All test requirements in Section 5.3 pass on Python 3.11, 3.12, and 3.13.
 - [ ] All v0.1 test requirements (T-0.1.1 through T-0.1.8) still pass.
 - [ ] `p4n4-docs`: this document updated — v0.2 status changed to `COMPLETE`.
@@ -639,6 +725,8 @@ Response 200 (application/json):
 | T-0.2.8   | index.json v2 schema    | Static      | `validate_index.py` (CI on p4n4-templates)               |
 | T-0.2.9   | p4n4-template.toml      | Static      | `validate_templates.py` (CI on all 3 new templates)      |
 | T-0.2.10  | v0.1 full suite         | Unit        | `pytest tests/` (all T-0.1.x must still pass)            |
+| T-0.2.11  | System 1 image          | Integration | `make system1-test` in p4n4-ai (amd64 and arm64)         |
+| T-0.2.12  | System 1 set gates      | Integration | `p4n4 ai system1 eval` exits 0 on every shipped set      |
 
 ---
 
@@ -650,13 +738,13 @@ Phase 3 feature specifications are written as detailed briefs. Precise acceptanc
 
 | Feature ID | Name                           | Repo(s)                       | Status |
 |------------|--------------------------------|-------------------------------|--------|
-| F-0.3.1    | Multi-site federation          | p4n4-ai, p4n4-templates       | Future |
-| F-0.3.2    | OpenTelemetry integration      | p4n4-iot, p4n4-ai             | Future |
-| F-0.3.3    | Embedding pipeline             | p4n4-ai, p4n4-cli             | Future |
-| F-0.3.4    | Optional Kafka/NATS layer      | p4n4-iot, p4n4-cli            | Future |
-| F-0.3.5    | Kubernetes/Helm chart          | p4n4-helm (new)               | Future |
-| F-0.3.6    | p4n4-flows standalone library  | p4n4-flows (new)              | Future |
-| F-0.3.7    | Shell completions              | p4n4-cli                      | Future |
+| F-0.3.1    | Multi-site federation          | p4n4-ai, p4n4-templates       | Not started |
+| F-0.3.2    | OpenTelemetry integration      | p4n4-iot, p4n4-ai             | Not started |
+| F-0.3.3    | Embedding pipeline             | p4n4-ai, p4n4-cli             | Not started |
+| F-0.3.4    | Optional Kafka/NATS layer      | p4n4-iot, p4n4-cli            | Not started |
+| F-0.3.5    | Kubernetes/Helm chart          | p4n4-helm (new)               | Not started |
+| F-0.3.6    | p4n4-flows standalone library  | p4n4-flows (new)              | Not started |
+| F-0.3.7    | Shell completions              | p4n4-cli                      | Partial (Typer's generic completion) |
 
 **Milestone: v0.3.0 "Scale & Extensibility"** — Deliverable: Multi-site federation, OpenTelemetry support, embedding pipeline, optional Kafka/NATS, Kubernetes/Helm chart, `p4n4-flows` library, shell completions. Integration tests pass on at least one ARM64 target (Raspberry Pi 5 or equivalent).
 
@@ -881,10 +969,10 @@ p4n4 --install-completion fish
 
 **Draft acceptance criteria:**
 
-- [ ] Completions for all top-level commands and their subcommands are generated correctly.
-- [ ] Stack names (`iot`, `ai`, `edge`) are completed for `p4n4 up`, `p4n4 down`, `p4n4 logs`, `p4n4 add`, `p4n4 remove`.
-- [ ] Completions are automatically generated by Typer; no manually maintained completion file exists in the repo.
-- [ ] Installation instructions are documented in `cli-reference.md`.
+- [x] Completions for all top-level commands and their subcommands are generated correctly (Typer's `--install-completion` / `--show-completion`; not tested in CI).
+- [ ] Stack names (`iot`, `ai`, `extras`, `dashboard`) are completed for `p4n4 up`, `p4n4 down`, `p4n4 logs`, `p4n4 add`, `p4n4 remove`. *Open: the stack arguments have no completion callback.*
+- [x] Completions are automatically generated by Typer; no manually maintained completion file exists in the repo.
+- [ ] Installation instructions are documented in `cli-reference.md`. *Open.*
 
 ---
 
@@ -924,20 +1012,22 @@ v1.0 is the first release designated "production-ready." The following criteria 
 
 These features are not in v0.3 and are required for the v1.0 designation:
 
-| Feature                   | Description                                                             |
-|---------------------------|-------------------------------------------------------------------------|
-| TLS wizard                | `p4n4 init` option to auto-generate self-signed certs or configure ACME via Caddy |
-| `p4n4 doctor`             | Environment diagnostic: Docker version, RAM, GPU presence, network reachability |
-| `p4n4-lib` Python package | Shared client code extracted from CLI; published separately to PyPI    |
-| `p4n4-api` REST gateway   | HTTP API at `:8000` exposing all p4n4 lifecycle operations             |
-| `p4n4-dashboard` web UI   | Basic project management and stack health visualisation                |
-| ARM64 CI testing          | GitHub Actions matrix includes `ubuntu-24.04-arm` for all test suites |
+| Feature                   | Description                                                             | Status (2026-10-14) |
+|---------------------------|-------------------------------------------------------------------------|---------------------|
+| TLS wizard                | `p4n4 init` option to auto-generate self-signed certs or configure ACME via Caddy | Not started |
+| `p4n4 doctor`             | Environment diagnostic: Docker version, RAM, GPU presence, network reachability | Partial: `scripts/doctor` in the monorepo (tools, submodules, venv, ports), not a CLI command |
+| `p4n4-lib` Python package | Shared client code extracted from CLI; published separately to PyPI    | Done (`p4n4-lib` on PyPI) |
+| `p4n4-api` REST gateway   | HTTP API at `:8000` exposing all p4n4 lifecycle operations             | Partial: shipped (0.2.0) with stack status and `up` / `down` / `restart` jobs; no scaffolding or secrets ([REST API](../reference/api.md)) |
+| `p4n4-dashboard` web UI   | Basic project management and stack health visualisation                | Done (p4n4-dashboard 1.2.0, the `dashboard` layer) |
+| ARM64 CI testing          | GitHub Actions matrix includes `ubuntu-24.04-arm` for all test suites | Partial: the System 1 image and p4n4-emu only |
 
 ---
 
 ## 8. Technical Specifications
 
 ### 8.1 Project Manifest Schema (`.p4n4.json`)
+
+> **Status (2026-10-14):** not what the CLI writes. The manifest in use is `schema_version` 1: `project`, `layers` (`iot`, `ai`, `extras`, `dashboard`; the legacy `edge`), `created_at`, an optional `template` object (`name`, `version`) and an optional `dashboard` block (`grafana_path`, `tabs`, `theme`, `home`, `cameras`, `feed`), checked by `p4n4_lib.manifest` and `p4n4_lib.validate` rather than a published schema. The schema below is the original target; `template_orgs` and `federation` remain future.
 
 Full JSON Schema (draft-07) for `manifest-v1.json`, covering fields through v0.2 with the v0.3 federation extension marked as optional:
 
@@ -981,6 +1071,8 @@ Full JSON Schema (draft-07) for `manifest-v1.json`, covering fields through v0.2
 
 ### 8.2 Template Descriptor Schema (`p4n4-template.toml`)
 
+> **Status (2026-10-14):** superseded: templates ship a `template.yaml` validated against p4n4-templates' `schema/template.schema.json` (required: `schema_version`, `name`, `version`, `title`, `description`, `layers`, `services`), and there are no Jinja2 variables (see [design.md §4.5](design.md#45-template-registry-p4n4-templates)).
+
 ```toml
 # Required fields
 [template]
@@ -1007,6 +1099,8 @@ gpu         = false                # whether a GPU is required
 ```
 
 ### 8.3 Template Index Schema (`index.json`)
+
+> **Status (2026-10-14):** not built (F-0.2.5).
 
 **v1 (current):**
 
@@ -1050,6 +1144,8 @@ gpu         = false                # whether a GPU is required
 
 ### 8.4 CLI Exit Codes
 
+> **Status (2026-10-14):** partly in use. The CLI exits `0`, `1` for its own errors (a missing `.p4n4.json` included), `2` for a usage error (Typer/Click), `5` when a System 1 set fails its gates, and Compose's own code when `up`, `down` or `logs` fail. `3`, `4` and `6` aren't used yet.
+
 | Code | Meaning                                                      |
 |------|--------------------------------------------------------------|
 | 0    | Success                                                      |
@@ -1057,7 +1153,7 @@ gpu         = false                # whether a GPU is required
 | 2    | User error (invalid arguments, missing `.p4n4.json`)         |
 | 3    | Docker error (compose config invalid, Docker daemon not running) |
 | 4    | Network error (`p4n4-net` missing, service unreachable)      |
-| 5    | Validation error (missing required `.env` variables)         |
+| 5    | Validation error (missing required `.env` variables, a System 1 set failing its gates) |
 | 6    | Compatibility error (stack version outside compatible range) |
 
 ### 8.5 Service API Endpoints Referenced by CLI and Flows
@@ -1077,6 +1173,12 @@ gpu         = false                # whether a GPU is required
 | InfluxDB   | POST   | `/api/v2/query`                       | Node-RED, n8n         | Execute Flux query        |
 | EI Runner  | POST   | `/api/v1/infer`                       | `p4n4 ei infer`       | Run inference on sample   |
 | EI Runner  | GET    | `/api/v1/info`                        | `p4n4 ei info`        | Runner metadata and model |
+| System 1   | POST   | `/v1/sets/:name`                      | n8n, `p4n4 ai system1 decide/eval` | Run a question set on a state |
+| System 1   | GET    | `/v1/sets`                            | `p4n4 ai system1 status`, harness | The loaded sets, versions, thresholds, temperatures |
+| System 1   | POST   | `/v1/systemone`                       | Harness, evaluation   | Ad hoc typed questions    |
+| n8n        | POST   | `/webhook/operator-intake`            | Channel adapters      | An operator message or button press (Bearer `OPERATOR_INTAKE_TOKEN`) |
+| n8n        | POST   | `/webhook/system1-drift`              | Grafana alerting      | System 1 drift alerts (Bearer `SYSTEM1_ALERT_TOKEN`) |
+| System 1   | GET    | `/health`                             | Compose healthcheck   | Liveness (no token)       |
 
 ### 8.6 MQTT Topic Conventions
 
@@ -1090,13 +1192,21 @@ Standard topic structure used across all official p4n4 templates and flows:
 | `status/<device-id>/online`          | device → broker | Heartbeat (retained message)     |
 | `inference/<device-id>/result`       | EI runner → NR  | Edge Impulse classification result |
 | `federation/<site-id>/sensors/#`     | spoke → hub     | Federated telemetry (v0.3)       |
+| `alerts/escalated`                   | n8n → consumers | Every critical alert, with team or suggested team and on-call |
+| `alerts/escalated/summary`           | n8n → consumers | Ollama's summary of an escalation, after it |
+| `system1/decisions/<set>`            | callers → NR    | One System 1 decision per request (QoS 1, not retained) |
+| `system1/feedback/<set>`             | callers → NR    | Operator confirmations and corrections (QoS 1, not retained) |
+| `operator/messages/<channel>`        | adapter → n8n   | An operator's message or button press |
+| `operator/replies/<channel>`         | n8n → adapter   | Replies, with buttons |
+| `operator/requests/<intent>`         | n8n → consumers | A request the operator confirmed |
+| `system1/drift/<set>`                | n8n → consumers | A System 1 drift alert, firing or resolved |
 
 **Payloads and storage:**
 
 - Every payload is a JSON object. The device id and measurement come from the topic; a `device` key in a `sensors/` or `inference/` payload is ignored by Node-RED. A device id is one topic level, so it can't contain `/`, `+` or `#`.
 - Node-RED writes `sensors/<device-id>/<measurement>` readings to the `sensor_data` measurement in `INFLUXDB_BUCKET`, tagged `device` and `sensor` (the measurement from the topic). Numbers, strings and booleans in the payload become fields; the numeric reading goes in `value`, for example `{"value": 23.5, "unit": "C"}`.
 - Node-RED writes `inference/<device-id>/result` messages to the `inference` measurement, tagged `device` and, when the payload has one, `model`.
-- The inference runner (p4n4-edge) reads feature vectors from `sensors/<device-id>/raw` (`{"values": [...]}`) and publishes each result to `inference/<device-id>/result`. `MQTT_TOPIC_RESULTS` is a template in which `{device}` is replaced by the device id.
+- The inference runner (p4n4-ai's `ei-runner`) reads feature vectors from `sensors/<device-id>/raw` (`{"values": [...]}`) and publishes each result to `inference/<device-id>/result`. `MQTT_TOPIC_RESULTS` is a template in which `{device}` is replaced by the device id.
 - The same topics under a `sandbox/` prefix go to `INFLUXDB_SANDBOX_BUCKET`.
 - Node-RED drops `sensors/` and `inference/` messages whose topic doesn't match these patterns, with a warning in its debug sidebar.
 
@@ -1122,9 +1232,15 @@ All stack environment variables, their owning stack, and whether they are cross-
 | `N8N_BASIC_AUTH_PASSWORD`   | p4n4-ai     | n8n                           | No                |
 | `N8N_ENCRYPTION_KEY`        | p4n4-ai     | n8n                           | No                |
 | `LETTA_SERVER_PASSWORD`     | p4n4-ai     | Letta, Node-RED               | Yes               |
-| `EI_API_KEY`                | p4n4-edge   | EI runner                     | No                |
-| `MQTT_TOPIC_INPUT`          | p4n4-edge   | EI runner                     | No                |
-| `MQTT_TOPIC_RESULTS`        | p4n4-edge   | EI runner                     | No                |
+| `SYSTEM1_API_KEY`           | p4n4-ai, p4n4-iot | System 1, n8n credential, Node-RED subflow (one value) | Yes |
+| `OPERATOR_INTAKE_TOKEN`     | p4n4-ai     | n8n credential (Operator Intake webhook) | Yes |
+| `SYSTEM1_ALERT_TOKEN`       | p4n4-ai, p4n4-iot | Grafana's drift alerts, n8n credential (one value) | Yes |
+| `SYSTEM1_CALIBRATION`       | p4n4-ai     | System 1 (site temperature file) | No |
+| `SYSTEM1_IMAGE` / `_REVISION` / `_CHECKPOINT` / `_THREADS` | p4n4-ai | System 1 | No |
+| `INFLUXDB_BUCKET_AI_EVENTS` | p4n4-iot, p4n4-ai | Node-RED, EI runner     | No                |
+| `EI_API_KEY`                | p4n4-ai     | EI runner                     | No                |
+| `MQTT_TOPIC_INPUT`          | p4n4-ai     | EI runner                     | No                |
+| `MQTT_TOPIC_RESULTS`        | p4n4-ai     | EI runner                     | No                |
 
 ---
 
@@ -1134,13 +1250,13 @@ All stack environment variables, their owning stack, and whether they are cross-
 
 | Repository        | Trigger              | CI Jobs                                                   |
 |-------------------|----------------------|-----------------------------------------------------------|
-| `p4n4-iot`        | push, PR             | `docker compose config --quiet`, `yamllint .`, `check_env_example.py` |
-| `p4n4-ai`         | push, PR             | `docker compose config --quiet`, `yamllint .`, `check_env_example.py` |
-| `p4n4-edge`       | push, PR             | `docker compose config --quiet`, `yamllint .`, `check_env_example.py` |
+| `p4n4-iot`        | push, PR             | `docker compose config --quiet`, `yamllint docker-compose.yml`, `check_env_example.py` |
+| `p4n4-ai`         | push, PR             | The same, plus n8n workflow and System 1 set JSON checks, the runner's image build and `pytest tests/` (3.11–3.13) |
+| `p4n4-extras`     | push, PR             | The same as p4n4-iot, every included extra and `_template/` included |
 | `p4n4-cli`        | push, PR             | `ruff check .`, `pytest` (Python 3.11, 3.12, 3.13 matrix) |
-| `p4n4-cli`        | tag push `v*`        | `python -m build`, `pypi-publish` (trusted publisher)     |
-| `p4n4-templates`  | push, PR             | `validate_index.py`, `validate_templates.py`              |
-| `p4n4-docs`       | push to `main`       | `mkdocs gh-deploy`                                        |
+| `p4n4-cli`        | release published    | `python -m build`, PyPI upload                            |
+| `p4n4-templates`  | push, PR             | `scripts/validate.py`, each template's `tests/smoke.sh`   |
+| `p4n4-docs`       | —                    | None yet (`mkdocs gh-deploy` once the site exists)         |
 | `p4n4-helm`       | push, PR (v0.3+)     | `helm lint`, `helm template`                              |
 
 ### 9.2 Release Checklist
@@ -1156,16 +1272,16 @@ Pre-release
 CLI repo (p4n4-cli)
 [ ] __version__ bumped in pyproject.toml and __init__.py
 [ ] CHANGELOG.md updated with release notes
-[ ] compat.py updated if stack compatibility range changed
+[ ] p4n4-lib's layer registry updated if a stack's files or required keys changed
 [ ] All CI checks green on main
 
 Stack repos (as applicable)
 [ ] p4n4-iot tagged vX.Y.Z
 [ ] p4n4-ai tagged vX.Y.Z
-[ ] p4n4-edge tagged vX.Y.Z
+[ ] p4n4-extras tagged vX.Y.Z
 
 Registry (as applicable)
-[ ] p4n4-templates index.json updated (schema version bump if applicable)
+[ ] p4n4-templates: each changed template's `template.yaml` version bumped
 [ ] New template README files reviewed
 
 Publish
@@ -1191,12 +1307,13 @@ Post-release
 | `.eim` | Edge Impulse model binary format; the compiled, deployable artifact for the Linux Runner |
 | `p4n4-net` | Docker bridge network (`172.20.0.0/16`) created by `p4n4-iot`; all stacks share it |
 | MING | Acronym for the IoT stack services: Mosquitto, InfluxDB, Node-RED, Grafana |
-| GenAI stack | The `p4n4-ai` stack: Ollama, Letta, n8n |
-| Edge AI stack | The `p4n4-edge` stack: Edge Impulse Linux Runner |
+| AI stack | The `p4n4-ai` stack: Ollama, Letta, n8n, System 1 and the inference runner (formerly the GenAI stack) |
+| Inference runner | `ei-runner`, the AI stack's Edge Impulse / ONNX runner; it was the `p4n4-edge` (Edge AI) stack until ADR-005 |
+| Extras | The `p4n4-extras` stack: optional services, none enabled by default, none depended on by the core |
 | Letta archival memory | Long-term, semantically searchable memory storage in a Letta agent; distinct from in-context memory |
 | Flux | InfluxDB's functional query language; used for all InfluxDB reads in p4n4 |
 | Subflow | A reusable, named group of nodes in Node-RED that can be instantiated anywhere in a flow |
-| Community template | A shareable project scaffold distributed via `p4n4-templates` registry and installable via `p4n4 template pull` |
+| Community template | A shareable project scaffold distributed via `p4n4-templates` registry and copied as a project root today (`p4n4 template install` is planned) |
 | Org index | A private `index.json`-compatible registry hosted by an organisation; registered via `p4n4 template org add` |
 | Federation hub | A p4n4 deployment configured as the central aggregation point for multi-site topologies |
 | Federation spoke | A p4n4 deployment that forwards telemetry and events to a federation hub |
@@ -1209,26 +1326,27 @@ Post-release
 
 | Feature ID | Name                             | Section | Phase | Status  |
 |------------|----------------------------------|---------|-------|---------|
-| F-0.1.4    | CLI core commands                | 4       | 1     | Planned |
-| F-0.1.6    | Project manifest                 | 4       | 1     | Planned |
-| F-0.1.7    | PyPI publish                     | 4       | 1     | Planned |
-| F-0.1.1    | p4n4-iot compose stack           | 4       | 1     | Planned |
-| F-0.1.2    | p4n4-ai compose stack            | 4       | 1     | Planned |
-| F-0.1.3    | p4n4-edge compose stack          | 4       | 1     | Planned |
-| F-0.1.5    | Secret management                | 4       | 1     | Planned |
-| F-0.2.1    | Letta agent personas             | 5       | 2     | Future  |
-| F-0.2.2    | Node-RED AI palette              | 5       | 2     | Future  |
-| F-0.2.3    | n8n workflow library             | 5       | 2     | Future  |
-| F-0.2.4    | p4n4 ei subcommands              | 5       | 2     | Future  |
-| F-0.2.5    | Template registry v2             | 5       | 2     | Future  |
-| F-0.2.6    | Official community templates     | 5       | 2     | Future  |
-| F-0.3.1    | Multi-site federation            | 6       | 3     | Future   |
-| F-0.3.2    | OpenTelemetry integration        | 6       | 3     | Future   |
-| F-0.3.3    | Embedding pipeline               | 6       | 3     | Future   |
-| F-0.3.4    | Optional Kafka/NATS layer        | 6       | 3     | Future   |
-| F-0.3.5    | Kubernetes/Helm chart            | 6       | 3     | Future   |
-| F-0.3.6    | p4n4-flows standalone library    | 6       | 3     | Future   |
-| F-0.3.7    | Shell completions                | 6       | 3     | Future   |
+| F-0.1.4    | CLI core commands                | 4       | 1     | Partial |
+| F-0.1.6    | Project manifest                 | 4       | 1     | Partial |
+| F-0.1.7    | PyPI publish                     | 4       | 1     | Done    |
+| F-0.1.1    | p4n4-iot compose stack           | 4       | 1     | Done    |
+| F-0.1.2    | p4n4-ai compose stack            | 4       | 1     | Done    |
+| F-0.1.3    | p4n4-edge compose stack          | 4       | 1     | Done; merged into p4n4-ai (ADR-005) |
+| F-0.1.5    | Secret management                | 4       | 1     | Partial |
+| F-0.2.1    | Letta agent personas             | 5       | 2     | Not started |
+| F-0.2.2    | Node-RED AI palette              | 5       | 2     | Partial |
+| F-0.2.3    | n8n workflow library             | 5       | 2     | Partial |
+| F-0.2.4    | p4n4 ei subcommands              | 5       | 2     | Not started |
+| F-0.2.5    | Template registry v2             | 5       | 2     | Not started |
+| F-0.2.6    | Official community templates     | 5       | 2     | Superseded |
+| F-0.2.7    | System 1 typed decisions         | 5       | 2     | In progress |
+| F-0.3.1    | Multi-site federation            | 6       | 3     | Not started |
+| F-0.3.2    | OpenTelemetry integration        | 6       | 3     | Not started |
+| F-0.3.3    | Embedding pipeline               | 6       | 3     | Not started |
+| F-0.3.4    | Optional Kafka/NATS layer        | 6       | 3     | Not started |
+| F-0.3.5    | Kubernetes/Helm chart            | 6       | 3     | Not started |
+| F-0.3.6    | p4n4-flows standalone library    | 6       | 3     | Not started |
+| F-0.3.7    | Shell completions                | 6       | 3     | Partial |
 
 ---
 
@@ -1254,6 +1372,8 @@ Post-release
 | T-0.2.8   | index.json v2 schema          | 5.3     | 2     | Static      |
 | T-0.2.9   | p4n4-template.toml validation | 5.3     | 2     | Static      |
 | T-0.2.10  | v0.1 regression suite         | 5.3     | 2     | Unit        |
+| T-0.2.11  | System 1 image regression     | 5.3     | 2     | Integration |
+| T-0.2.12  | System 1 question-set gates   | 5.3     | 2     | Integration |
 | T-0.3.1   | Federation spoke/hub          | 6.2     | 3     | Integration |
 | T-0.3.2   | OTEL trace export             | 6.2     | 3     | Integration |
 | T-0.3.3   | Embedding pipeline            | 6.2     | 3     | Integration |
@@ -1271,3 +1391,8 @@ Post-release
 | 0.1-draft  | raisga  | Initial draft — all phases, v0.1 through v1.0                      |
 | 0.1-draft2 | raisga  | Reset to greenfield: v0.1 PLANNED, v0.2/v0.3 FUTURE; CLI-first priority; all acceptance criteria open |
 | 0.1-draft3 | raisga  | Match the known-issues fixes: Node-RED login and flows directory (F-0.1.1), edge runner endpoints, model mounts and topics (F-0.1.3), `init` edge scaffolding (F-0.1.4), `ei` stub status (§4.2), JSON inference contract (F-0.2.4), topic payload and storage rules (§8.6), env var names (§8.7) |
+| 0.1-draft4 | raisga  | Add F-0.2.7 System 1 typed decisions (dependencies, deliverables, S1 exit criteria, tests T-0.2.11/12, endpoints, topics, variables); exit code 5 covers failing question sets |
+| 0.1-draft5 | raisga  | F-0.2.7 S2: deliverables and exit criteria, the `p4n4-system1` subflow in F-0.2.2, `operator-intake.json`, `GET /v1/sets` and the intake webhook, the `operator/…` topics, `OPERATOR_INTAKE_TOKEN` |
+| 0.1-draft6 | raisga  | F-0.2.7 S3: calibration, drift alerts (`system1/drift/<set>`, the `system1-drift` webhook, `SYSTEM1_ALERT_TOKEN`), U7 labels, the ranking gate; the U3–U6 sets deferred to S4 |
+| 0.1-draft7 | raisga  | F-0.2.7 S4: fine-tuning (`make system1-train`, `system1/train/`), `SYSTEM1_REPO`, `operator-intake` v4; the U3–U6 sets still drafts |
+| 0.1-draft8 | raisga  | ADR-005 (edge merged into ai; p4n4-extras), and a status pass: every feature's status and acceptance criterion checked against the code on 2026-10-14; status notes where the code went another way (§8.1–8.4 included) |

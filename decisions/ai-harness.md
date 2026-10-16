@@ -67,8 +67,8 @@ Nissan Cube. It does the following:
 No cloud, and no data leaves the car unless the owner syncs it at home.
 
 The car needs a protocol adapter that p4n4 doesn't have. That leads to the second proposal:
-**extras**, community-maintained stacks mounted at `stacks/extra/` from a new `p4n4-extras`
-repository. Each extra declares a contract: hardware, MQTT topics, env keys, a safety class,
+**extras**, community-maintained stacks mounted at `stacks/extras/` from the `p4n4-extras`
+repository (formerly p4n4-edge, [ADR-005](adr/ADR-005.md)). Each extra declares a contract: hardware, MQTT topics, env keys, a safety class,
 tests against a simulator and its own license. OBD-II is the first extra; Modbus and raw CAN
 are next.
 
@@ -305,7 +305,7 @@ Voice is a later phase (§9, H5).
 | `edge_deploy_model` | X | copies the model, then **recreates** the runner container via an api job | A restart doesn't re-read `.env`, so a new model needs a recreate (KI-5) |
 | `mqtt_publish` | X | api `POST /mqtt/publish` | `commands/<vehicle>/…` is refused (tier N) |
 | `stack_up`, `stack_down`, `stack_restart` | X | api `/stacks/{stack}/{action}` jobs | Polls `/jobs/{id}` |
-| `system1_decide`, `system1_eval` | R | System 1 service | From [System 1](system1.md) §3, U8 |
+| `system1_decide`, `system1_eval` | R, R | System 1 service: `POST /v1/sets/<set>`, `GET /v1/sets`; lib `system1` (`load_set`, `load_examples`, `evaluate`) | From [System 1](system1.md) §3, U8. Answers carry `abstain`: an abstained answer is "no suggestion". No side effects, so neither publishes to the decision log (system1.md §7.7). Definitions in Appendix B |
 | `obd_probe` | R | obd2 extra HTTP API | Protocol, VIN, supported PIDs, adapter info |
 | `obd_dtc_read` | R | obd2 extra | Stored, pending and permanent codes, freeze frame |
 | `obd_dtc_clear` | X | obd2 extra | Engine off, two confirmations, and the freeze frame saved first (§7.3) |
@@ -317,7 +317,7 @@ Voice is a later phase (§9, H5).
 - writes an audit entry when it runs for real;
 - is idempotent where it can be.
 
-Schemas are JSON Schema; Appendix B shows one.
+Schemas are JSON Schema; Appendix B shows one, and the two System 1 tools.
 
 ### 4.4 Skills
 
@@ -352,18 +352,22 @@ or as plain instructions for other hosts):
 
 ### 5.1 Why a new kind of stack
 
-The four layers (`iot`, `ai`, `edge`, `dashboard`) are fixed in `p4n4_lib/layers.py`, with
+The layers (`iot`, `ai`, `extras`, `dashboard`) are fixed in `p4n4_lib/layers.py`, with
 repo URLs in `sources.yaml` [source]. Device protocols are numerous, niche and
 hardware-bound. They don't belong in the core stacks, and the core team can't test them all.
 Extras give them a home with a contract, so they plug into the rest of p4n4 the same way.
+The `extras` layer is that home: opt-in, never in `--layer all`, nothing enabled by default
+([ADR-005](adr/ADR-005.md)). Each extra is a directory of its own inside it.
 
 ### 5.2 Repository
 
-A new repository, `raisga/p4n4-extras`, mounted in the monorepo at `stacks/extra/`. It works
-the same way `p4n4-templates` does:
+The `raisga/p4n4-extras` repository (formerly p4n4-edge), mounted in the monorepo at
+`stacks/extras/`. It works the same way `p4n4-templates` does:
 
 ```
-stacks/extra/                       (p4n4-extras)
+stacks/extras/                      (p4n4-extras)
+├── docker-compose.yml              the layer: `include:` one line per extra
+├── _template/                      the skeleton extra to copy (exists today)
 ├── README.md                       catalog, maturity levels, how to contribute
 ├── schema/extra.schema.json        manifest schema (Appendix A)
 ├── scripts/validate.py             CI: schema, contract and license checks
@@ -378,8 +382,12 @@ stacks/extra/                       (p4n4-extras)
 └── canbus/                         next: SocketCAN + DBC decoding → MQTT
 ```
 
-In a project, an extra is copied to `<project>/extras/<name>/` as its own Compose project on
-`p4n4-net`, the same way multi-layer projects keep each layer in its own directory (ADR-002).
+In a project, an extra is copied to `<project>/extras/<name>/`, and the extras layer's
+`docker-compose.yml` pulls it in with `include:`. All extras then run as one Compose project
+(the layer's, on `p4n4-net`, with one `.env`), each in a profile of its own name, while
+keeping their own compose file, config and paths. The layer, `_template/` and the `include:`
+convention exist (p4n4-lib 0.4.0); `schema/`, `scripts/validate.py` and the extras below are
+still to build.
 
 ### 5.3 Contract
 
@@ -419,11 +427,13 @@ Every extra must meet these rules. `scripts/validate.py` checks the ones it can.
 
 ### 5.5 Platform changes
 
-- **p4n4-lib:** an extras registry (from `p4n4-extras`, alongside the fixed layers), scaffold
-  and validate support, and an `extras` list in `.p4n4.json` (`name`, `version`, `source`).
+- **p4n4-lib:** the `extras` layer exists (0.4.0). Still to do: an extras registry (from
+  `p4n4-extras`), scaffold and validate support per extra (copy `<name>/`, add its `include:`
+  line and `.env` section), and an `extras` list in `.p4n4.json` (`name`, `version`, `source`).
   The manifest probably moves to `schema_version: 2` (§12 Q7). Gap G1.
-- **p4n4-cli:** `p4n4 extra list|add|remove` and `p4n4 up extras/<name>`. `p4n4 add` is a
-  stub today [source] (G2).
+- **p4n4-cli:** `p4n4 extra list|add|remove`. `p4n4 up extras` already starts the layer (and
+  skips it while nothing is enabled); one extra is its profile in `COMPOSE_PROFILES`.
+  `p4n4 add` is a stub today [source] (G2).
 - **p4n4-emu:** device passthrough off, simulator on, by default.
 - **p4n4-dashboard:** extras can ship a brand tab (the obd2 Vehicle tab, G15).
 
@@ -534,7 +544,7 @@ Every extra must meet these rules. `scripts/validate.py` checks the ones it can.
 ### 6.7 Deliverables
 
 - §6 results filled in (this document, version 0.3).
-- `stacks/extra/obd2` 0.1 (incubating), with the option chosen in §6.3.
+- `stacks/extras/obd2` 0.1 (incubating), with the option chosen in §6.3.
 - A `nissan-cube-2011` simulator scenario recorded from the car (our own capture, no VIN in
   it), under the extra's license.
 - The PID and CVT findings shared with the community sources we used.
@@ -761,6 +771,71 @@ smoke_test: tests/smoke.sh
     }
   },
   "annotations": {"tier": "X", "destructiveHint": false, "idempotentHint": true}
+}
+```
+
+**System 1 tools** (system1.md §15.9). The harness sends requests from inside the
+`system1` container, as `p4n4 ai system1` does, so the key never leaves it.
+
+```json
+{
+  "name": "system1_decide",
+  "description": "Run a System 1 question set on one state and return each answer with its confidence and abstain flag. Advisory: an abstained answer, or a no-answer key such as 'unknown', means no suggestion. The state must be the set's canonical state (see the set's description), never a raw payload.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "set": {"type": "string", "pattern": "^[a-z0-9_-]{1,64}$", "description": "A set the service loaded (GET /v1/sets)"},
+      "state": {"type": "object", "description": "The set's canonical state, e.g. {\"alert\": \"...\"} for incident-triage"}
+    },
+    "required": ["set", "state"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "set": {"type": "object", "properties": {"name": {"type": "string"}, "version": {"type": "integer"}}},
+      "answers": {"type": "object", "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "choice": {"type": "string"},
+          "confidence": {"type": "number"},
+          "abstain": {"type": "boolean"},
+          "temperature": {"type": "number"}
+        }
+      }},
+      "state_sha256": {"type": "string"},
+      "latency_ms": {"type": "number"}
+    }
+  },
+  "annotations": {"tier": "R", "readOnlyHint": true, "idempotentHint": true}
+}
+```
+
+```json
+{
+  "name": "system1_eval",
+  "description": "Run a question set's evaluation file through System 1 and check its gates (coverage, answered accuracy, confident-wrong rate), per question and per language. Never edits the set: proposed thresholds and temperatures are for a person to apply, with a version bump.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "set": {"type": "string", "pattern": "^[a-z0-9_-]{1,64}$"},
+      "fit_thresholds": {"type": "boolean", "default": false},
+      "fit_calibration": {"type": "boolean", "default": false}
+    },
+    "required": ["set"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "passed": {"type": "boolean"},
+      "failures": {"type": "array", "items": {"type": "string"}},
+      "report": {"type": "object", "description": "p4n4_lib.system1.Report.as_dict()"},
+      "proposed_thresholds": {"type": "object"},
+      "proposed_temperatures": {"type": "object"}
+    }
+  },
+  "annotations": {"tier": "R", "readOnlyHint": true, "idempotentHint": true}
 }
 ```
 

@@ -38,7 +38,7 @@ scripts/dev up /tmp/demo                                # stack + API + hot-relo
 | Command | What it does |
 |---------|--------------|
 | `setup` | Creates `.venv` (Python ≥ 3.11) with `lib`, `cli` and `api` editable, and runs `flutter pub get` in `dashboard/` |
-| `p4n4 <args…>` | The CLI from `cli/`. `init` gets `--source-iot/ai/edge/dashboard` pointing at the local checkouts unless you pass your own |
+| `p4n4 <args…>` | The CLI from `cli/`. `init` gets `--source-iot/ai/extras/dashboard` pointing at the local checkouts unless you pass your own |
 | `new <template> [dir]` | Copies a template from `tools/templates/projects` and creates each layer's `.env` from its `.env.example` |
 | `api [project]` | p4n4-api for the project, reloading on changes in `api/` and `lib/` |
 | `dashboard [project] [--theme]` | The dashboard with hot reload on `:8088` (needs the API) |

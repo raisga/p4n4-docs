@@ -70,9 +70,10 @@ Interactive docs are at `/swagger-ui` and the spec at `/openapi.json`.
 | `POST` | `/api/v1/auth/refresh` | Refresh token → new pair (each refresh token works once) |
 | `POST` | `/api/v1/auth/logout` | Revoke the refresh token and its whole sign-in, access tokens included |
 | `POST` | `/api/v1/auth/password` | Change your own password (🔒 any role): signs out every other sign-in and returns a new pair |
-| `GET` | `/api/v1/auth/me` | The signed-in user and role (🔒 any role) |
-| `GET` `POST` | `/api/v1/users` | 🔑 List users / create one (`{username, password, role}`, role defaults to `operator`) |
-| `GET` `PATCH` `DELETE` | `/api/v1/users/{username}` | 🔑 Read, change (`{role?, password?}`) or remove a user. The last admin can't be demoted or removed (`409`) |
+| `GET` | `/api/v1/auth/me` | The signed-in user and role, and `password_change_required` (🔒 any role) |
+| `GET` `POST` | `/api/v1/users` | 🔑 List users (with `last_login_at`) / create one (`{username, password, role, must_change_password?}`, role defaults to `operator`) |
+| `GET` `PATCH` `DELETE` | `/api/v1/users/{username}` | 🔑 Read, change (`{role?, password?, must_change_password?}`) or remove a user. The last admin can't be demoted or removed (`409`) |
+| `POST` | `/api/v1/users/{username}/sign-out` | 🔑 Sign the user out on every device, keeping their password (audited) |
 | `GET` | `/api/v1/devices` | 🔒 Device registry, paginated (`limit`, `offset`) |
 | `POST` | `/api/v1/devices` | 🔑 Register a device; the response holds its API key, shown once |
 | `GET` `PATCH` `DELETE` | `/api/v1/devices/{id}` | 🔒 Read; 🔑 change (`name`, `description`, `enabled`) or remove |
@@ -94,6 +95,10 @@ Interactive docs are at `/swagger-ui` and the spec at `/openapi.json`.
 | `GET` | `/api/v1/inference/results` | 🔒 Results the runner's pipeline stored (`ai_events`) |
 | `GET` | `/api/v1/dashboard/views` | 🔒 Tabs each p4n4-dashboard view shows and their order: `{tab_order, power_tabs, normie_tabs}` (null = the dashboard's default) |
 | `PUT` | `/api/v1/dashboard/views` | 🔑 Set them for every device (audited) |
+| `GET` | `/api/v1/dashboard/view-settings` | 🔒 What else the power and normie views show: `{power, normie}`, each `{start_tab, home_cards, grafana_path, cameras, camera_overlay, alerts, alert_sound}` (null = the dashboard's default; admins always get the defaults) |
+| `PUT` | `/api/v1/dashboard/view-settings` | 🔑 Set both views' settings for every device (audited) |
+| `GET` | `/api/v1/dashboard/banner` | 🔒 The message shown above every dashboard view: `{text, tone, until}` (`tone` is `info` or `warning`; empty `text` = none, also once `until` has passed) |
+| `PUT` | `/api/v1/dashboard/banner` | 🔑 Show a banner, or clear it with empty `text` (audited) |
 | `GET` | `/api/v1/agents/config` | 🔒 The assistant everyone chats with: `{backend, model, agent_id}` (null = the first one listed), and `updated_at`/`updated_by` (null until someone chooses; p4n4-dashboard then offers its brand's default) |
 | `PUT` | `/api/v1/agents/config` | 🔒 `operator` or `admin`: choose the assistant (audited) |
 | `GET` | `/api/v1/agents/models` | 🔒 Ollama models |
@@ -109,7 +114,8 @@ Interactive docs are at `/swagger-ui` and the spec at `/openapi.json`.
 
 Every error (4xx/5xx) has the body `{"error": {"code": "...", "message": "..."}}`. `code` is
 stable and meant for programs (`not_found`, `forbidden`, `validation_error`,
-`rate_limited`, `user_exists`, `last_admin`, `assistant_restricted`, …); `message` is for
+`rate_limited`, `user_exists`, `last_admin`, `assistant_restricted`,
+`password_change_required`, …); `message` is for
 people. Every response carries an `X-Request-ID` header (the caller's or a generated one),
 which the server's log lines repeat.
 
@@ -126,7 +132,7 @@ for example with standalone `docker-compose` v1, are `null`.
 `cpu_percent`, `mem_percent`, `mem_used_mb`, `mem_total_mb`, `disk_percent` (of `/`),
 `uptime_s`, `load` (1/5/15 min) and `temp_c`. `temp_c` comes from a CPU/SoC sensor
 (`cpu_thermal` on a Raspberry Pi, `coretemp`/`k10temp` on x86) and is left out when there
-isn't one, for example in a VM. `inference_ms` is the edge runner's `last_latency_ms`, when the runner is reachable.
+isn't one, for example in a VM. `inference_ms` is the edge runner's `last_latency_ms`, when the project runs it (`ei-runner` in the ai layer's `COMPOSE_PROFILES`, or a legacy edge layer) and it's reachable.
 
 ## Users and roles
 
@@ -134,6 +140,8 @@ isn't one, for example in a VM. `inference_ms` is the edge runner's `last_latenc
 p4n4-api users list
 p4n4-api users add alice                  # operator by default; --role normie|admin
 p4n4-api users passwd alice               # also signs alice out everywhere
+p4n4-api users passwd alice --must-change # …and she picks a new one at her next sign-in
+p4n4-api users sign-out alice             # signs alice out everywhere, same password
 p4n4-api users role alice admin
 p4n4-api users remove alice
 echo "$PASSWORD" | p4n4-api users add alice --password-stdin
@@ -151,7 +159,12 @@ that already exist. Never use it on a reachable deployment.
 | `admin` | Everything an operator can, plus users, devices, stack control, container logs and the audit log |
 
 The role is read from the database on every request, so role changes and removals apply
-immediately. Registered devices sign in with their API key (`POST /api/v1/auth/token`) and
+immediately.
+
+An admin can require a new password when creating a user or resetting theirs
+(`must_change_password`, or `--must-change` on the command line). The token response then says
+`password_change_required: true`, and every route but `/api/v1/auth/*` answers
+`403 password_change_required` until the user changes it (`POST /api/v1/auth/password`). Registered devices sign in with their API key (`POST /api/v1/auth/token`) and
 get a token that can only send telemetry (`POST /api/v1/telemetry`).
 
 ## Configuration
@@ -172,13 +185,13 @@ get a token that can only send telemetry (`POST /api/v1/telemetry`).
 | `P4N4_API_MQTT_ENABLED` | `false` turns the MQTT connection off (no publishing, no live stream). Default `true` |
 | `P4N4_API_MQTT_HOST`, `_PORT` | Broker (default `localhost:1883`, the IoT stack's) |
 | `P4N4_API_MQTT_USERNAME`, `_PASSWORD` | Broker credentials, if it requires them |
-| `P4N4_API_EDGE_RUNNER_URL` | The edge stack's inference runner (default `http://localhost:8080`, its published port) |
+| `P4N4_API_EDGE_RUNNER_URL` | The edge inference runner, the AI stack's `ei-runner` (default `http://localhost:8080`, its published port) |
 | `P4N4_API_MQTT_PUBLISH_ALLOW` | Topic filters `POST /mqtt/publish` may use, comma-separated (`+`, `#` wildcards). Default `#` |
 | `P4N4_API_MQTT_PUBLISH_DENY` | Topic filters it may not use; wins over allow. Default `sensors/#,inference/#` (device data, which Node-RED stores). `none` for no denials |
 | `P4N4_API_OLLAMA_URL` | Ollama (default `http://localhost:11434`, the ai stack's published port) |
 | `P4N4_API_LETTA_URL` | Letta (default `http://localhost:8283`) |
 | `P4N4_API_LETTA_PASSWORD` | Letta's server password; default `LETTA_SERVER_PASSWORD` from the project's `ai/.env`. Sent only from the API to Letta |
-| `P4N4_API_INFLUXDB_AI_EVENTS_BUCKET` | Where the runner stores results; default `INFLUXDB_BUCKET_AI_EVENTS` from the project's `edge/.env`, then `ai_events` |
+| `P4N4_API_INFLUXDB_AI_EVENTS_BUCKET` | Where the runner stores results; default `INFLUXDB_BUCKET_AI_EVENTS` from the project's `ai/.env` (`edge/.env` in a project from before the edge layer merged into ai), then `ai_events` |
 | `P4N4_API_DOCKER` | `off` when the API has no Docker access (a container without the socket): stack status, control and logs return `503`, and `/ready` doesn't require Docker. Default `on` |
 | `P4N4_API_DISK_PATH` | Filesystem `/edge/metrics` reports as `disk_percent` (default `/`) |
 | `P4N4_API_AUTH` | `off` disables auth: every request is treated as an admin. **Development only**; logs a warning at startup |

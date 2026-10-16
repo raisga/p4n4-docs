@@ -83,7 +83,7 @@ Generate the password file:
 mosquitto_passwd -c config/mosquitto/passwd <username>
 ```
 
-Then set matching `MQTT_USER` / `MQTT_PASSWORD` in the edge stack's `.env` and in any
+Then set matching `MQTT_USER` / `MQTT_PASSWORD` in the AI stack's `.env` (for the inference runner) and in any
 Node-RED or n8n MQTT nodes.
 
 ## Secret rotation
@@ -121,10 +121,10 @@ value to `.env` by hand so `p4n4 secret show` and the other layers stay in step:
 
 ## `.env` file
 
-- Never commit `.env` to version control — it is in `.gitignore`.
+- Never commit `.env` to version control. `p4n4 init` writes a `.gitignore` at the project root that ignores every layer's `.env`, along with Mosquitto's `passwd` and certificates, Node-RED's credentials file, model files and p4n4-api's data; keep it when you put the project in git. A project made before CLI 0.4.0 has none: copy the one a new `p4n4 init` writes.
 - Only `.env.example` (with placeholder values) is committed.
 - Use `p4n4 secret show` to audit current secrets (values are masked).
-- Multi-layer projects have one `.env` per stack (`iot/.env`, `ai/.env`, `edge/.env`).
+- Multi-layer projects have one `.env` per stack (`iot/.env`, `ai/.env`, `extras/.env`).
   `p4n4 init` writes the same value to keys shared across stacks (e.g. `INFLUXDB_TOKEN`),
   and `p4n4 secret rotate` updates every file. When you change a shared key by hand, change
   it in every layer's `.env`, or the stacks drift out of sync.

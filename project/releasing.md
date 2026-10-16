@@ -4,6 +4,68 @@ Each repository keeps its GitHub release bodies in its own `release-notes/` fold
 per release named `v<version>.md`, passed to `gh release create --notes-file`. This page holds
 what spans repositories: the order of a release set and how to write a body.
 
+## v0.4.0 release set (2026-10)
+
+Publish in this order. Each step needs the one before it:
+
+| # | Release | Repo | Ships as | Notes |
+|---|---|---|---|---|
+| 1 | p4n4-lib **0.4.0** | `lib` | PyPI `p4n4-lib` | Not written yet (`lib/release-notes/v0.4.0.md`) |
+| 2 | p4n4-api **0.3.0** | `api` | `ghcr.io/raisga/p4n4-api` (installs p4n4-lib from PyPI) | [api/release-notes/v0.3.0.md](https://github.com/raisga/p4n4-api/blob/main/release-notes/v0.3.0.md) |
+| 2 | p4n4-dashboard **1.3.0** | `dashboard` | `ghcr.io/raisga/p4n4-dashboard` | [dashboard/release-notes/v1.3.0.md](https://github.com/raisga/p4n4-dashboard/blob/main/release-notes/v1.3.0.md) |
+
+Release the two images together, after p4n4-lib 0.4.0 is on PyPI and `api/uv.lock` locks it.
+
+From the monorepo root:
+
+```bash
+gh release create v0.3.0 --repo raisga/p4n4-api       --title v0.3.0 --notes-file api/release-notes/v0.3.0.md
+gh release create v1.3.0 --repo raisga/p4n4-dashboard --title v1.3.0 --notes-file dashboard/release-notes/v1.3.0.md
+```
+
+### How they fit together
+
+| | needs | used by |
+|---|---|---|
+| p4n4-lib 0.4.0 | — | api 0.3.0 (`p4n4-lib>=0.4.0`) |
+| p4n4-api 0.3.0 | p4n4-lib 0.4.0 | dashboard 1.3.0 (view settings, banner, account tools, chats, vision) |
+| p4n4-dashboard 1.3.0 | p4n4-api 0.3.0 | — |
+
+## v0.3.0 release set (2026-10)
+
+Publish in this order. Each step needs the one before it:
+
+| # | Release | Repo | Ships as | Notes |
+|---|---|---|---|---|
+| 1 | p4n4-system1 **0.1.0** | `stacks/ai` (tag `system1-v0.1.0`) | `ghcr.io/raisga/p4n4-system1` | The image `SYSTEM1_IMAGE` pins; no GitHub release |
+| 1 | p4n4-lib **0.3.0** | `lib` | PyPI `p4n4-lib` | [lib/release-notes/v0.3.0.md](https://github.com/raisga/p4n4-lib/blob/main/release-notes/v0.3.0.md) |
+| 2 | p4n4-api **0.2.0** | `api` | `ghcr.io/raisga/p4n4-api` (installs p4n4-lib from PyPI) | [api/release-notes/v0.2.0.md](https://github.com/raisga/p4n4-api/blob/main/release-notes/v0.2.0.md) |
+| 2 | p4n4-dashboard **1.2.0** | `dashboard` | `ghcr.io/raisga/p4n4-dashboard` | [dashboard/release-notes/v1.2.0.md](https://github.com/raisga/p4n4-dashboard/blob/main/release-notes/v1.2.0.md) |
+| 3 | p4n4 (CLI) **0.3.0** | `cli` | PyPI `p4n4` | [cli/release-notes/v0.3.0.md](https://github.com/raisga/p4n4-cli/blob/main/release-notes/v0.3.0.md) |
+
+p4n4-lib 0.2.1 and p4n4-dashboard 1.1.1 were never published: their changes ship in
+p4n4-lib 0.3.0 and p4n4-dashboard 1.2.0. Release the two images together. The stacks,
+templates, emu, hw and docs keep their own version lines; the root repo records their
+commits.
+
+From the monorepo root:
+
+```bash
+gh release create v0.3.0 --repo raisga/p4n4-lib       --title v0.3.0 --notes-file lib/release-notes/v0.3.0.md
+gh release create v0.2.0 --repo raisga/p4n4-api       --title v0.2.0 --notes-file api/release-notes/v0.2.0.md
+gh release create v1.2.0 --repo raisga/p4n4-dashboard --title v1.2.0 --notes-file dashboard/release-notes/v1.2.0.md
+gh release create v0.3.0 --repo raisga/p4n4-cli       --title v0.3.0 --notes-file cli/release-notes/v0.3.0.md
+```
+
+### How they fit together
+
+| | needs | used by |
+|---|---|---|
+| p4n4-lib 0.3.0 | — | CLI 0.3.0, api 0.2.0 (`p4n4-lib>=0.3.0`) |
+| p4n4-api 0.2.0 | p4n4-lib 0.3.0 | dashboard 1.2.0 (assistant, views, Feed, Home) |
+| p4n4-dashboard 1.2.0 | p4n4-api 0.2.0 | CLI 0.3.0 (`--layer dashboard` pins it) |
+| p4n4 (CLI) 0.3.0 | p4n4-lib 0.3.0, p4n4-system1 0.1.0 | — |
+
 ## v0.2.0 release set (2026-10)
 
 Publish in this order. Each step needs the one before it:
