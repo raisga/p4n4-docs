@@ -40,15 +40,41 @@ An existing unlabelled network is recreated only while no container uses it.
 
 ## Hardware profiles
 
-| Profile | CPU | Memory | Disk R/W | Arch |
-|---------|-----|--------|----------|------|
-| `rpi4` | 4 cores | 3.5 GB | 50 MB/s | arm64 |
-| `rpi5` | 4 cores | 7 GB | 100 MB/s | arm64 |
-| `mcu-class` | 1 core | 256 MB | 10 MB/s | x86_64 |
-| `nuc` | 4 cores | 14 GB | 200 MB/s | x86_64 |
+| Profile | CPU | Core speed (7-Zip MIPS) | Memory | Disk R/W | Arch |
+|---------|-----|-----|--------|----------|------|
+| `rpi-zero2w` | 4 cores | 838 | 384 MB | 22 MB/s | arm64 |
+| `rpi3` | 4 cores | 977 | 768 MB | 22 MB/s | arm64 |
+| `rpi4` | 4 cores | 1769 | 3.5 GB | 50 MB/s | arm64 |
+| `rpi5` | 4 cores | 3305 | 7 GB | 100 MB/s | arm64 |
+| `jetson-orin-nano` | 6 cores | 2153 | 7 GB | 500 MB/s | arm64 + NVIDIA GPU |
+| `mcu-class` | 1 core | — | 256 MB | 10 MB/s | x86_64 |
+| `nuc` | 4 cores | — | 14 GB | 200 MB/s | x86_64 |
 
 What each limit does and doesn't reproduce, and where the numbers come from, is under
 [How faithful the emulation is](#how-faithful-the-emulation-is).
+
+- **Core speed.** A CPU limit caps time, not speed. `p4n4-emu calibrate` runs 7-Zip's
+  single-thread benchmark on the host and stores its score in
+  `~/.p4n4-emu/calibration.json`; from then on `up` multiplies every CPU limit by board core
+  / host core (never above 1). Calibrate images under QEMU separately
+  (`--platform arm64`); `--cpu-factor` sets the factor by hand and `calibrate --show` lists
+  each profile's.
+- **Pinning.** `up --cpuset auto` (or a list such as `0-3`) puts every service on as many
+  host cores as the board has; the quotas still apply.
+- **Processes and OOM.** Every service gets a pids limit, its memory share of the board's
+  `threads-max`. With no swap, a service over its memory share is OOM-killed in its own
+  container, as on a Pi.
+- **GPU.** With `jetson-orin-nano`, `ollama` and `ei-runner` reserve one NVIDIA GPU. That
+  needs the host's NVIDIA runtime and `--native` images; otherwise, or with `--no-gpu`, they
+  run on the CPU with a warning.
+- **Per-service shares** (InfluxDB 40 % of the CPU and 35 % of the memory, for example)
+  change in a profile's `shares:` or a project's `.p4n4-emu/config.yml`; `"*"` sets the
+  share of services the stacks don't ship.
+- **Your own profiles** go in `~/.p4n4-emu/profiles/<name>.yml` or a project's
+  `.p4n4-emu/profiles/`; a project's beats yours, and yours beats a built-in of the same
+  name. `p4n4-emu profile validate` checks them, and `profile list` shows where each comes
+  from. The [p4n4-emu README](https://github.com/raisga/p4n4-emu#hardware-profiles) has
+  the file format.
 
 ## Requirements
 
@@ -95,7 +121,7 @@ All items should show **OK**. The check reads Docker's cgroup version and driver
 
 ### Enable ARM64 emulation (optional)
 
-Required to run the ARM profiles (`rpi4`/`rpi5`) on an x86 Linux host. `up` runs their
+Required to run the ARM profiles (the Raspberry Pis and the Jetson) on an x86 Linux host. `up` runs their
 arm64 images by default and refuses to start until QEMU is registered; pass `--native` to
 apply only the resource limits with host-architecture images:
 
@@ -155,24 +181,32 @@ the next `up`, and a switch that changes the architecture is refused.
 
 ```
 p4n4-emu setup [--arch arm64|armv7] [--check-only]
-p4n4-emu up    [--profile PROFILE] [--stack iot|ai|extras|dashboard|iot,ai|all]
-               [--stack-dir PATH] [--arch arm64|armv7|x86_64 | --native]
-               [--sim] [--sim-interval 2.0] [--sim-devices 1] [--build] [--pull]
-               [--dry-run]
+p4n4-emu calibrate [--platform arm64|armv7] [--score MIPS] [--show] [--json]
+p4n4-emu up    [--profile rpi5] [--stack iot|ai|extras|dashboard|iot,ai|all]
+               [--stack-dir PATH] [--arch arm64|armv7|x86_64 | --native] [--no-gpu]
+               [--cpu-factor 0.01–1] [--cpuset auto|LIST]
+               [--sim] [--sim-interval 2.0] [--sim-devices 1] [--sim-scenario FILE]
+               [--sim-replay FILE]
+               [--build] [--pull] [--dry-run]
 p4n4-emu down  [--stack ...] [--stack-dir PATH] [--volumes] [--yes]
-p4n4-emu status [--profile PROFILE] [--stack ...] [--json]
+p4n4-emu status [--profile rpi5] [--stack ...] [--json]
+p4n4-emu logs  [SERVICE] [--stack ...] [--stack-dir PATH] [--tail 100] [--no-follow]
 p4n4-emu report [--stack ...] [--stack-dir PATH] [--output PATH] [--samples 5]
                 [--interval 2.0] [--tail 500] [--label KEY=VALUE ...] [--fail-on-issues]
-p4n4-emu logs  [SERVICE] [--stack ...] [--stack-dir PATH] [--tail 100] [--no-follow]
 p4n4-emu profile list [--json]
 p4n4-emu profile show <name> [--json]
-p4n4-emu profile switch <name> [--stack ...] [--dry-run]
-p4n4-emu sim start [--interval 2.0] [--devices 1] [--mqtt-host HOST] [--network NAME]
-                   [--rebuild]
+p4n4-emu profile validate [NAME|FILE ...] [--json]
+p4n4-emu profile switch <name> [--stack ...] [--cpu-factor 0.01–1] [--dry-run]
+p4n4-emu sim start [--interval 2.0] [--devices 1 | --scenario FILE]
+                   [--mqtt-host HOST] [--network NAME] [--port PORT]
+                   [--username USER] [--tls] [--ca-file PATH] [--cert-file PATH --key-file PATH]
+                   [--qos 0|1|2] [--retain] [--replay FILE [--speed 1] [--loop]] [--rebuild]
+p4n4-emu sim check FILE   # a scenario, or a recording (.csv)
 p4n4-emu sim stop
 p4n4-emu sim status
 p4n4-emu run   [--profile rpi5] [--device ID] [--scenario FILE] [--gpio-mqtt HOST[:PORT]]
-               [--no-parts] [--python PATH] SCRIPT [ARGS...]
+               [--gpio-prefix emu/gpio] [--hardware FILE | --no-parts] [--gpiod v2|v1]
+               [--python PATH] SCRIPT [ARGS...]
 ```
 
 Without `--stack`, commands target the enabled stacks of the surrounding p4n4 project
@@ -203,6 +237,25 @@ and drops the readings it takes while disconnected. It joins the iot broker's ne
 connects to it by the name the iot stack gives it; `--mqtt-host` and `--network` override
 both.
 
+Beyond those four measurements, a YAML **scenario** (`sim start --scenario`, `up
+--sim-scenario`, checked by `sim check`) sets the devices, their measurements, ranges and
+rates, and adds:
+
+- **Faults:** spikes, stuck values, drift, dropouts, late readings and malformed payloads,
+  per device or measurement, with a `seed` for repeatable runs.
+- **Camera and audio feeds** (`kind: image` / `kind: audio`) for the inference runner, as
+  `{"values": [...]}` feature vectors.
+- **Firmware-like devices** (`mcu:`): their own MQTT connection, registration on
+  `devices/<id>/register`, retained availability, deep sleep, Wi-Fi drops and an offline
+  buffer.
+- **Replays** of a recording (plain CSV, or an InfluxDB export of the iot flow's
+  `sensor_data`), also with `sim start --replay FILE --speed --loop` or `up --sim-replay`.
+
+It logs in and uses TLS when the broker asks (`--username` with `MQTT_PASSWORD`, `--tls`,
+`--ca-file`, `--cert-file` / `--key-file`), and publishes with `--qos` and `--retain`.
+`examples/sim-scenario.yml` in `tools/emu` uses every option; the
+[p4n4-emu README](https://github.com/raisga/p4n4-emu#sensor-simulator) documents each one.
+
 Run standalone against a local Mosquitto:
 
 ```bash
@@ -224,9 +277,9 @@ p4n4-emu run --python .venv/bin/python -- -m my_app  # the script's own virtuale
 | Library | What the stub covers |
 |---------|----------------------|
 | `RPi.GPIO` | As rpi-lgpio (the Pi 5's RPi.GPIO) behaves: `setmode` (BCM / BOARD), `setup`, `input` / `output`, edge detection with `bouncetime`, `wait_for_edge`, `PWM`, `RPI_INFO`, `cleanup` |
-| `lgpio` | Chips, claims, groups, alerts and callbacks (debounce included), `tx_pwm` / `tx_servo`, `i2c_*` / `spi_*` |
+| `lgpio` | Chips, claims, groups, alerts and callbacks (debounce included), watchdogs, notification pipes, `tx_pwm` / `tx_servo`, `i2c_*` / `spi_*` / `serial_*` |
 | `gpiozero` | The real library, unmodified: it picks its lgpio pin factory, which runs on the `lgpio` stub |
-| `gpiod` | The libgpiod v2 API: chips, line info, `request_lines`, active-low, bias, edge events |
+| `gpiod` | The libgpiod v2 API: chips, line info, `request_lines`, active-low, bias, edge events. `--gpiod v1` gives the v1 API instead (python3-libgpiod 1.6, Debian bookworm's package) |
 | `smbus2`, `smbus` | Every SMBus call and `i2c_rdwr` |
 | `spidev` | `SpiDev` on `/dev/spidev0.0` and `0.1` |
 | `serial` (pyserial) | `Serial` on `/dev/serial0` and `/dev/ttyAMA0` |
@@ -241,7 +294,13 @@ ADS1115 (0x48), an MCP3008 (SPI 0.0) and a DS18B20 on 1-Wire
 (`/sys/bus/w1/devices/28-*/w1_slave`). A driver reads them as the real parts, through their
 calibration data and raw counts, and their values follow the sensor simulator's curves for
 one device (`--device`, default `emu-sensor-0`; `--scenario` for a scenario's waves), so the
-script reads what the simulator publishes for that device.
+script reads what the simulator publishes for that device. `--hardware FILE` lists other
+parts instead (with their bus, address or chip select, and which measurement feeds each
+input), and `--no-parts` attaches none. A scenario's spike, stuck, drift and dropout faults
+apply to the parts too: a dropout takes the part off its bus.
+
+A PWM output toggles: a read returns high for the duty cycle's part of each period. Up to
+10 Hz each toggle is also an edge (a blinking LED); faster PWM shows only in reads.
 
 With `--gpio-mqtt HOST[:PORT]`, inputs are driven over MQTT and pin levels are published:
 
@@ -252,8 +311,7 @@ mosquitto_sub -t 'emu/gpio/+/state' -v        # every pin's level, on every chan
 ```
 
 In tests, `p4n4_emu.hw.shims.install()` does what `run` does, and `pins.drive(27, 0)`
-presses the button directly. Not stubbed: the `gpiod` v1 API, `lgpio`'s serial calls, and
-PWM as a toggling level (a PWM output records its frequency and duty cycle).
+presses the button directly.
 
 ## How faithful the emulation is
 
@@ -263,14 +321,16 @@ dashboard that stalls on disk), not to predict latency or throughput on the real
 
 | What | How it's applied | Enforced | Approximated, or not at all |
 |------|------------------|----------|-----------------------------|
-| CPU | `deploy.resources.limits.cpus` → CFS quota (`cpu.max`) per container | Yes, cgroup v1 or v2 | It caps CPU *time*, not core *speed*: four host cores are much faster than four Cortex-A72 / A76 cores (planned: a per-profile performance factor). Each service gets a share and can't borrow what the others leave idle, as it could on a real board (planned: one shared cgroup slice). |
-| Memory | `limits.memory` → `memory.max`; over it, the kernel OOM-kills the container | Yes, cgroup v1 or v2 | Page cache counts towards the limit, as on the board. The OS's own share is left out of the profile (see below), not simulated. |
+| CPU | `deploy.resources.limits.cpus` → CFS quota (`cpu.max`) per container, × board core / host core after `calibrate`; `--cpuset` → `cpuset.cpus` | Yes, cgroup v1 or v2 | The quota caps CPU *time*. The core-speed factor comes from one benchmark (7-Zip): workloads leaning on SIMD, cache size or memory bandwidth will differ. Under QEMU the host is usually slower than the board already, so nothing is scaled. Each service gets a share and can't borrow what the others leave idle, as it could on a real board (not built: one shared cgroup slice). |
+| Processes | `limits.pids` → `pids.max`, the service's memory share of the board's `threads-max` | Yes, cgroup v1 or v2 | Split per service: one service can't use pids another leaves free. |
+| Memory | `limits.memory` → `memory.max`; over it, the kernel OOM-kills the container | Yes, cgroup v1 or v2 | Page cache counts towards the limit, as on the board. The OS's own share is left out of the profile (see below), not simulated. A service hits its own share even while the board would still have memory free. `oom_score_adj` orders only the host's OOM kills. |
 | Swap | `memswap_limit` = memory: no swap | Yes on cgroup v2; on v1 only with swap accounting (`swapaccount=1`) | A board configured with swap has some; the profiles assume none. |
-| Disk bandwidth | `blkio_config` → `io.max` read/write bytes per second, on the whole disk that holds Docker's data root | Yes for direct and buffered I/O on cgroup v2; direct I/O only on v1 | Bandwidth only: no IOPS or latency limit, so small random writes are far faster than on an SD card (planned). Reads served from page cache aren't throttled. Volumes or bind mounts on another disk aren't limited. Skipped when no block device is found (tmpfs, NFS, some btrfs / LVM setups, Docker Desktop). `profile switch` can't change it on running containers. |
+| Disk bandwidth | `blkio_config` → `io.max` read/write bytes per second, on the whole disk that holds Docker's data root | Yes for direct and buffered I/O on cgroup v2; direct I/O only on v1 | Bandwidth only: no IOPS or latency limit, so small random writes are far faster than on an SD card (not built). Reads served from page cache aren't throttled. Volumes or bind mounts on another disk aren't limited. Skipped when no block device is found (tmpfs, NFS, some btrfs / LVM setups, Docker Desktop). `profile switch` can't change it on running containers. |
 | Disk priority | `blkio_config.weight` → `io.bfq.weight` | Only with the BFQ I/O scheduler | Has no effect on hosts using `mq-deadline` or `none`, the usual default for NVMe. |
 | Architecture | `platform: linux/arm64` with QEMU user-mode emulation | Yes: the arm64 images and binaries run | Speed: QEMU is roughly 3–10x slower, so timings mean nothing and LLM inference (Ollama) is impractical. Kernel features come from the host kernel, not the board's. |
-| GPIO, I2C, SPI, UART, 1-Wire | `p4n4-emu run`: stubs for the libraries a script imports, and register-level sensor models | In the script's process | Logic levels and register contents, not electrical behaviour or timing: transfers are instant, PWM is recorded but doesn't toggle the pin, and a sensor reads the simulator's curve. Containers don't see these devices. |
-| Storage size, network, accelerators, temperature | — | No | No capacity limit, no network shaping (planned: `tc netem`), no thermal throttling. |
+| GPIO, I2C, SPI, UART, 1-Wire | `p4n4-emu run`: stubs for the libraries a script imports, and register-level sensor models | In the script's process | Logic levels and register contents, not electrical behaviour or timing: transfers are instant, PWM toggles in software time (not to the microsecond), and a sensor reads the simulator's curve. Containers don't see these devices. |
+| GPU (`jetson-orin-nano`) | `deploy.resources.reservations.devices`: one NVIDIA GPU for `ollama` and `ei-runner` | Only with the host's NVIDIA runtime and `--native` images | It's the host's GPU, with its own memory and speed: the Jetson's GPU shares its 8 GB with the CPU, which the profile can't reproduce. |
+| Storage size, network, Coral / Hailo accelerators, temperature | — | No | No capacity limit, no network shaping (not built: `tc netem`), no accelerator stub, no thermal throttling. |
 
 On Docker Desktop the limits apply inside its Linux VM, and the VM's own CPU and memory
 settings cap everything on top of them.
@@ -279,15 +339,22 @@ settings cap everything on top of them.
 
 | Profile | Board | CPU | Memory | Disk (read = write) |
 |---------|-------|-----|--------|------|
-| `rpi4` | Raspberry Pi 4, 4 GB | 4 cores (Cortex-A72) | 3.5 GB: 4 GB minus 512 MB for the OS | 50 MB/s, an SD card |
-| `rpi5` | Raspberry Pi 5, 8 GB | 4 cores (Cortex-A76) | 7 GB: 8 GB minus 1 GB for the OS | 100 MB/s, an SD card on the Pi 5's faster slot |
+| `rpi-zero2w` | Raspberry Pi Zero 2 W, 512 MB | 4 cores (Cortex-A53, 1.0 GHz: 838) | 384 MB: 512 MB minus the GPU's and the OS's share | 22 MB/s, the SD interface's ceiling |
+| `rpi3` | Raspberry Pi 3 Model B, 1 GB | 4 cores (Cortex-A53, 1.2 GHz: 977) | 768 MB: 1 GB minus the GPU's and the OS's share | 22 MB/s, the SD interface's ceiling |
+| `rpi4` | Raspberry Pi 4, 4 GB | 4 cores (Cortex-A72, 1.8 GHz: 1769) | 3.5 GB: 4 GB minus 512 MB for the OS | 50 MB/s, an SD card |
+| `rpi5` | Raspberry Pi 5, 8 GB | 4 cores (Cortex-A76, 2.4 GHz: 3305) | 7 GB: 8 GB minus 1 GB for the OS | 100 MB/s, an SD card on the Pi 5's faster slot |
+| `jetson-orin-nano` | NVIDIA Jetson Orin Nano, 8 GB | 6 cores (Cortex-A78AE, 1.5 GHz: 2153) | 7 GB: 8 GB minus 1 GB for the OS | 500 MB/s, an NVMe SSD |
 | `nuc` | Intel NUC, 16 GB | 4 cores | 14 GB: 16 GB minus 2 GB for the OS | 200 MB/s, a conservative SSD |
 | `mcu-class` | none: a floor for very small Linux devices | 1 core | 256 MB | 10 MB/s |
 
-These are round estimates for each class of board, not measurements; the repo holds no
-benchmark behind them. Two known biases: real SD cards write much slower than they read,
-while the profiles use one rate for both; and the CPU count says nothing about per-core
-speed. `mcu-class` is a small x86 Linux container, not a microcontroller: with 256 MB, the
-iot stack's Node-RED gets 38 MiB and InfluxDB 89 MiB (InfluxDB alone used 137 MiB on a
-workstation), so expect them to be OOM-killed. To match your own hardware, measure it
-(`sysbench cpu`, `fio`, `free -m`) and edit `p4n4_emu/profiles/definitions/*.yml` in `tools/emu`.
+Memory and disk are round estimates for each class of board, not measurements. Core speeds
+(the number after the clock) are measured: single-thread 7-Zip MIPS from sbc-bench's results
+table, on 64-bit OSes at stock clocks. A known bias: real SD cards write much slower than
+they read, while the profiles use one rate for both. `mcu-class` is a small x86 Linux
+container, not a microcontroller: with 256 MB, the iot stack's Node-RED gets 38 MiB and
+InfluxDB 89 MiB (InfluxDB alone used 137 MiB on a workstation), so expect them to be
+OOM-killed; `rpi-zero2w` is close to that. The Pi 3 and Zero 2 W profiles assume 64-bit
+Raspberry Pi OS: for the 32-bit OS pass `--arch armv7`, though few of the stacks' images
+(InfluxDB 2 among them) publish armv7. To match your own hardware, measure it (`7z b -mmt1`
+for `cpu_score`, `fio`, `free -m`) and write a profile of your own
+([Hardware profiles](#hardware-profiles)).

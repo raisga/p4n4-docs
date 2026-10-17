@@ -2,8 +2,11 @@
 
 **Version:** 0.2
 **Date:** 2026-10-03
-**Status:** Draft. Nothing in this document is implemented yet. The OBD-II spike (§6) has
-done its desk research; the in-car work hasn't started.
+**Status:** Draft proposal, not scheduled. The harness (MCP server, tools, skills) and p4n4 Car
+aren't built. Pieces it relies on have shipped since: the `extras` layer and the p4n4-extras
+repository (CLI and p4n4-lib 0.4.0, [ADR-005](adr/ADR-005.md)), and System 1's tool
+definitions ([System 1](system1.md) §15.9). The OBD-II spike (§6) has done its desk research;
+the in-car work hasn't started. The gap table (§8) was last checked on 2026-10-16.
 
 > **About this version.** Version 0.1 (2026-09-23) was never committed. Other documents cite
 > it: [Known Issues](https://github.com/raisga/p4n4-docs/blob/265aaa8/project/known-issues.md) (all fixed, since removed), the code review and [System 1](system1.md).
@@ -590,15 +593,15 @@ The harness also removes known secret patterns from them before returning anythi
 ## 8. Gaps
 
 What p4n4 is missing for the harness and for p4n4 Car. G3–G9 keep their 0.1 meanings, as
-cited by [Known Issues](https://github.com/raisga/p4n4-docs/blob/265aaa8/project/known-issues.md) and the code review. Status is as of
-2026-10-03 (v0.2.0 release prep).
+cited by [Known Issues](https://github.com/raisga/p4n4-docs/blob/265aaa8/project/known-issues.md) and the code review. Status was first
+written on 2026-10-03 (v0.2.0 release prep) and checked again on 2026-10-16 (CLI 0.4.0).
 
 | # | Gap | Repos | Needed by | Status |
 |---|---|---|---|---|
-| G1 | No registry, scaffold or validation for extras; layers are fixed in `layers.py` | lib, cli | §5.5, `extra_*` tools | Open |
+| G1 | No registry, scaffold or validation for extras; layers are fixed in `layers.py` | lib, cli | §5.5, `extra_*` tools | **Partly**: the `extras` layer and p4n4-extras exist (0.4.0); no registry, per-extra scaffold or validation |
 | G2 | `p4n4 add` / `remove` are stubs | cli, lib | `layer_add`, `extra_add` | Open |
 | G3 | `p4n4 init --layer all` skipped edge (KI-3) | cli, lib | `template_apply`, edge tools | **Fixed** (CLI 0.2.0) |
-| G4 | The edge runner had no inference API (KI-4) | edge | `edge_infer`, `edge_model_list` | **Fixed**: `GET /api/v1/info`, `POST /api/v1/infer` |
+| G4 | The edge runner had no inference API (KI-4) | edge (now ai's `ei-runner`) | `edge_infer`, `edge_model_list` | **Fixed**: `GET /api/v1/info`, `POST /api/v1/infer` |
 | G5 | Topic and data contract drifting between specs, flows and n8n triggers | iot, ai, docs | `nodered_flows_apply` checks, §3.5 | **Partly**: specs §8.6 adopted (KI-1, KI-2 fixed); an end-to-end data-contract test is still open (review §8.2) |
 | G6 | Docs disagree with code on manifest fields and env key names | docs | Agents reading the docs | **Partly**: specs 0.1-draft3 aligned; no check keeps them aligned |
 | G7 | No end-to-end test that starts the stacks (review CI-3) | all | §10 evaluation | Open |
@@ -607,10 +610,10 @@ cited by [Known Issues](https://github.com/raisga/p4n4-docs/blob/265aaa8/project
 | G10 | p4n4-api has user accounts and roles but no scoped tokens for agents, and no confirmation-token flow | api | §4.1, §7.2 | Open |
 | G11 | The MQTT bridge only pulls from an external broker; there's no push to a home broker | iot, cli | §3.7 | Open |
 | G12 | No encryption at rest, retention UI or erase action | iot, dashboard, hw | §3.6 | Open |
-| G13 | Services listen on all interfaces, MQTT is anonymous, secrets have fallback defaults | iot, ai | §7.1 (car hotspot) | Open: scheduled for 0.2.1 |
+| G13 | Services listen on all interfaces, MQTT is anonymous, secrets have fallback defaults | iot, ai | §7.1 (car hotspot) | **Partly**: Ollama, Letta, the runner and p4n4-api bind `127.0.0.1`; every IoT port has a `*_BIND` setting (default `0.0.0.0`); devices need a login once `MQTT_PASSWORD` is set, with per-device accounts, ACLs and TLS ([Security](../guides/security.md)). The compose files still fall back to default passwords when `.env` has none |
 | G14 | Storage rules cover `sensors/` and `inference/` only; `alerts/` events (DTCs) aren't stored | iot | §3.5, C2 | Open |
 | G15 | No Vehicle view in the dashboard; no way for an extra to ship a tab | dashboard | §3.8 | Open |
-| G16 | No path to collect a dataset and train an edge model from stored telemetry (`p4n4 ei` is a stub) | edge, cli | C6, `p4n4-edge-model` | Open |
+| G16 | No path to collect a dataset and train an edge model from stored telemetry (`p4n4 ei` is a stub) | ai (`ei-runner`), cli | C6, `p4n4-edge-model` | Open |
 
 ## 9. Phases
 
@@ -623,7 +626,8 @@ cited by [Known Issues](https://github.com/raisga/p4n4-docs/blob/265aaa8/project
 | **H4** | Home sync (G11), retention and erase (G12), modbus and canbus extras (incubating) | History at home; a second protocol added by someone outside the core team |
 | **H5** | Voice (wake word, local speech-to-text and text-to-speech), only after H3 is stable | Hands-free questions answered within a few seconds [estimate] |
 
-The 0.2.1 security release (G13) comes before anyone runs p4n4 Car with the hotspot on.
+Closing G13 (no default-password fallbacks, IoT ports off the hotspot interface) comes
+before anyone runs p4n4 Car with the hotspot on.
 
 ## 10. Evaluation
 

@@ -1,7 +1,7 @@
 # p4n4 — Multi-Repository Architecture
 
 > Reference document for scaffolding the p4n4 GitHub organisation and its constituent repositories.
-> Version 0.1 | 2026
+> Version 0.4 (p4n4 CLI 0.4.0) | 2026
 
 ---
 
@@ -398,14 +398,13 @@ Markdown, read on GitHub; a MkDocs site is planned (no site config or CI yet).
 p4n4-docs/
 ├── README.md                   ← overview and index
 ├── getting-started.md
-├── stacks/                     ← iot-stack, ai-stack, edge-inference (edge-stack points there), extras, dashboard
+├── stacks/                     ← iot-stack, ai-stack, edge-inference, extras, dashboard
 ├── reference/                  ← architecture (this file), cli-reference, api, dashboard,
 │                                  configuration, mqtt-topics, template-registry, hardware, emulator
 ├── guides/                     ← deployment, development, security, troubleshooting,
 │                                  migrating-from-edge, raspberry-pi, jetson, aws, gcp, azure, digitalocean
 ├── decisions/                  ← design, specs, design drafts, adr/ (ADR-001 … ADR-005)
-├── project/                    ← releasing
-└── diagrams/
+└── project/                    ← releasing
 ```
 
 ### 3.9 `p4n4-hw` (hardware designs and scripts)

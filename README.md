@@ -1,7 +1,7 @@
 # p4n4 docs
 
 > EdgeAI + GenAI Integration Platform
-> Version 0.2 | 2026
+> Version 0.4 | 2026
 
 **p4n4** (pronounced *"pana"*) is a self-hosted, open-source Docker Compose platform for small-to-medium IoT deployments augmented with an AI layer (Edge and/or Generative). It takes direct inspiration from the IoTStack TIGUITTO pattern and extends it with an **AI stack**: local GenAI (Ollama, with optional Letta and n8n), fast typed decisions (System 1) and on-device inference (Edge Impulse and ONNX).
 
@@ -200,6 +200,20 @@ See the [Security guide](guides/security.md) for the full hardening walkthrough.
 
 ## Roadmap
 
+### Released
+
+| Component | Version | Ships as |
+|-----------|---------|----------|
+| p4n4 (CLI) | 0.4.0 | PyPI `p4n4` |
+| p4n4-lib | 0.4.0 | PyPI `p4n4-lib` |
+| p4n4-api | 0.3.0 | `ghcr.io/raisga/p4n4-api` (amd64, arm64) |
+| p4n4-dashboard | 1.3.0 | `ghcr.io/raisga/p4n4-dashboard` (amd64, arm64); desktop and mobile builds from CI |
+| p4n4-system1 | 0.1.0 | `ghcr.io/raisga/p4n4-system1` (amd64, arm64) |
+| p4n4-iot, p4n4-ai, p4n4-extras | untagged | Scaffolded from each repo's `main` by `p4n4 init` |
+| p4n4-emu, p4n4-hw | 0.1.0 | From a checkout (`tools/emu`, `tools/hw`); not on PyPI yet |
+
+How these are cut and published is in [Releasing](project/releasing.md).
+
 ### Phase 1 — Foundation (v0.1)
 - [x] IoT stack: Mosquitto · Node-RED · InfluxDB · Grafana
 - [x] GenAI stack: Ollama · Letta · n8n integrated via Node-RED
@@ -210,15 +224,29 @@ See the [Security guide](guides/security.md) for the full hardening walkthrough.
 - [x] Published to PyPI as `p4n4`
 
 ### Phase 2 — Intelligence Layer (v0.2)
-- [x] System 1: fast typed decisions with laya (`p4n4-system1` 0.1.0, `p4n4 ai system1`)
+- [x] System 1: fast typed decisions with laya (`p4n4-system1` 0.1.0, `p4n4 ai system1`); its exit criteria are still open (see below)
 - [x] Dashboard sign-in with roles, assistant, Feed and Home (p4n4-dashboard 1.2.0)
-- [x] Edge inference merged into the AI stack; optional services in `extras` ([ADR-005](decisions/adr/ADR-005.md))
+- [x] Kiosk mode, per-view settings, a banner, account tools and the vision overlay (p4n4-dashboard 1.3.0 with p4n4-api 0.3.0)
+- [x] Edge inference merged into the AI stack; optional services in `extras`; `p4n4 migrate edge` ([ADR-005](decisions/adr/ADR-005.md), CLI 0.4.0)
+- [x] MQTT device logins, ACLs and TLS in the IoT stack ([Security](guides/security.md))
+- [x] First official community templates published (six in [p4n4-templates](reference/template-registry.md))
 - [ ] Pre-built Letta agent personas: Site Monitor, Anomaly Analyst, Operator Assistant
-- [ ] Node-RED AI palette: curated nodes for Ollama/Letta integration
-- [ ] n8n workflow library: alert enrichment, scheduled digest, incident escalation
+- [ ] Node-RED AI palette: Ollama, Letta and InfluxDB subflows (only `p4n4-system1` exists)
+- [ ] n8n workflow library: the four AI-augmented workflows (six workflows ship today)
 - [ ] `p4n4 ei` subcommands: deploy, run, status (stubs today), list, infer, update, info
 - [ ] `p4n4 template search/install/list` (stubs today), `add`, `remove`, `upgrade`
-- [x] First official community templates published (six in [p4n4-templates](reference/template-registry.md))
+
+### In progress
+- [ ] **p4n4-lib and CLI 0.4.1:** `p4n4 up` creates `p4n4-net` on `P4N4_SUBNET` instead of always on `172.20.0.0/16` (fixed in the checkout, not released; [Releasing](project/releasing.md))
+- [ ] **Smoke test of the 0.4 line:** a full `p4n4 up` of iot + ai + the inference runner, and `p4n4 migrate edge` on a real project, haven't been run yet
+- [ ] **System 1 exit criteria:** p95 latency on a native Raspberry Pi 5, the regression suite on arm64, the gates on a real site's file, and the U3–U6 question sets ([System 1](decisions/system1.md))
+- [ ] **p4n4-emu on PyPI:** the publish workflow is ready; the PyPI trusted publisher isn't set up
+
+### Next
+- [ ] An `api` layer: `p4n4 up` runs p4n4-api for the project and creates its first admin (today the API is started by hand)
+- [ ] The MkDocs site for these docs
+- [ ] TLS in the `p4n4 init` wizard
+- [ ] An extras catalog and `p4n4 extra add` ([AI harness draft](decisions/ai-harness.md))
 
 ### Phase 3 — Scale & Extensibility (v0.3+)
 - [ ] Multi-site federation
@@ -228,6 +256,8 @@ See the [Security guide](guides/security.md) for the full hardening walkthrough.
 - [ ] Kubernetes / Helm chart (optional, multi-node)
 - [ ] `p4n4 template upgrade` — delta merge with changelog
 - [ ] Shell completion of stack names (commands already complete: `p4n4 --install-completion`)
+
+Feature-level status and acceptance criteria are in the [Specifications Roadmap](decisions/specs.md).
 
 ---
 
@@ -268,6 +298,7 @@ p4n4/                       (monorepo — you are here)
 | Node-RED | iot | 1880 | Operators (login required), internal services |
 | InfluxDB | iot | 8086 | Node-RED, Grafana, n8n |
 | Grafana | iot | 3000 | Operators (browser) |
+| MQTTX Web (optional) | iot | 8081 | MQTT web client (`mqtt-ui` profile) |
 | Ollama | ai | 11434 | Node-RED, Letta, n8n on `p4n4-net`; host port on `127.0.0.1` (`OLLAMA_BIND`) |
 | Letta | ai | 8283 | Node-RED, n8n on `p4n4-net`; host port on `127.0.0.1` (`LETTA_BIND`) |
 | n8n | ai | 5678 | Operators, Grafana webhooks |

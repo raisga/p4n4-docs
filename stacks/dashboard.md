@@ -56,7 +56,7 @@ its own container on `p4n4-net`, set `P4N4_API_UPSTREAM=http://p4n4-api:8000` in
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DASHBOARD_VERSION` | `1.1.0` | Image tag (a p4n4-dashboard release) |
+| `DASHBOARD_VERSION` | `1.3.0` | Image tag (a p4n4-dashboard release) |
 | `DASHBOARD_PORT` | `8088` | Host port |
 | `DASHBOARD_BIND` | `0.0.0.0` | Interface to publish on; a LAN address keeps it off other networks |
 | `DASHBOARD_HOST` | *(empty)* | Host the browser uses for Grafana and direct links; empty means the page's host |
@@ -66,6 +66,8 @@ its own container on `p4n4-net`, set `P4N4_API_UPSTREAM=http://p4n4-api:8000` in
 | `DASHBOARD_BASIC_AUTH` | *(empty)* | htpasswd entries (`make htpasswd NAME=admin`); set, the whole UI needs a login |
 | `DASHBOARD_TLS_SITE`, `DASHBOARD_TLS` | `localhost`, `internal` | HTTPS front end (`make up-tls`): the site address, and `internal` or an email for Let's Encrypt |
 | `DASHBOARD_TLS_PORT`, `DASHBOARD_HTTP_PORT` | `443`, `80` | Host ports of the HTTPS front end (HTTP redirects to HTTPS and answers ACME) |
+| `DASHBOARD_DEMO_DIR` | *(unset)* | A folder of video files served at `/demo/`, for a brand's demo cameras (`video.demoCameras` with URLs like `demo/cam-01.mp4`). Anyone who can open the dashboard can fetch them |
+| `BRAND` | `p4n4` | The brand `make up-local` and `make image` build: `p4n4`, or an installed theme's id |
 
 ## White-label images
 

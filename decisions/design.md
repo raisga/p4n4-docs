@@ -350,11 +350,11 @@ Markdown in the p4n4-docs repository (`docs/` in the monorepo), read on GitHub. 
 Content structure:
 - `README.md` — platform overview and index
 - `getting-started.md` — installation and first project
-- `stacks/` — `iot-stack.md`, `ai-stack.md`, `edge-inference.md` (the AI stack's runner; `edge-stack.md` points there), `extras.md`, `dashboard.md`
+- `stacks/` — `iot-stack.md`, `ai-stack.md`, `edge-inference.md` (the AI stack's runner), `extras.md`, `dashboard.md`
 - `reference/` — architecture, CLI, REST API, dashboard, configuration, MQTT topics, template registry, hardware, emulator
 - `guides/` — deployment, development, security, troubleshooting, migrating from the edge stack, and hosts: Raspberry Pi 5, Jetson, AWS, Google Cloud, Azure, DigitalOcean
 - `decisions/` — this document, the specs, design drafts, and `adr/` (Architecture Decision Records)
-- `project/` — releasing, known issues
+- `project/` — releasing
 
 ---
 

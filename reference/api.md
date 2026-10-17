@@ -5,10 +5,12 @@
 `P4N4_PROJECT_DIR`, and both flat and multi-layer layouts ([ADR-002](../decisions/adr/ADR-002.md)).
 Its main client is the [dashboard](dashboard.md).
 
-v0.1 covers sign-in and users, the device registry, the project and its stacks (status,
-control as background jobs, logs, an audit log), telemetry (ingest, query and a live
-stream), the edge runner's inference, Ollama and Letta agents, MQTT publishing and host
-metrics. Prometheus metrics are still planned; see the
+Version 0.3.0 (paired with p4n4-dashboard 1.3.0) covers sign-in and users, the device
+registry, the project and its stacks (status, control as background jobs, logs, an audit
+log), telemetry (ingest, query and a live stream), the edge runner's inference, Ollama and
+Letta agents, MQTT publishing, host metrics, and what the dashboard shows: per-view
+settings, a banner, the project's Home page, Feed, chats and vision overlay. Prometheus
+metrics (`/metrics`) are still planned; see the
 [p4n4-api README](https://github.com/raisga/p4n4-api) and its `TODO.md`.
 
 ## Run
@@ -80,6 +82,13 @@ Interactive docs are at `/swagger-ui` and the spec at `/openapi.json`.
 | `POST` | `/api/v1/devices/{id}/key` | 🔑 Rotate the API key (old key and its tokens stop at once) |
 | `GET` | `/api/v1/project` | 🔒 Manifest (including its optional `template` and `dashboard` blocks), layout (`flat`/`multi`), and per-stack directories |
 | `GET` | `/api/v1/project/validate` | 🔒 Run `p4n4_lib.validate` checks; returns `{ok, passed, errors}` |
+| `GET` | `/api/v1/project/home` | 🔒 The Markdown at the top of the dashboard's Home tab: the file `dashboard.home` names, or `HOME.md`; `?lang=es` prefers `HOME.es.md`. `204` when there's none |
+| `GET` | `/api/v1/project/vision` | 🔒 The Video tab's vision overlay: the JSON file `dashboard.vision.file` names, plus `dashboard.vision.live` as `live`. `204` when there's none, or the file is missing, invalid, over 8 MiB or outside the project |
+| `GET` | `/api/v1/feed` | 🔒 The Feed tab's items from the upstream `dashboard.feed` names (`limit`, `before`); a normie's items have no `actions`. `404` when the project has no feed |
+| `POST` | `/api/v1/feed/{id}/action` | 🔒 `operator` or `admin`: act on an item (`{action}`), relayed to the upstream with the user's name (audited) |
+| `GET` | `/api/v1/chats` | 🔑 The chats the project's bot serves (e.g. Telegram), from the service `dashboard.chats` names; its token stays server side |
+| `POST` | `/api/v1/chats/codes` | 🔑 A one-time code that links a chat (audited) |
+| `DELETE` | `/api/v1/chats/{id}` | 🔑 Unlink a chat: no more alerts, and the bot stops answering it (audited) |
 | `GET` | `/api/v1/stacks` | 🔒 Compose service status per stack (`503` if Docker is unreachable) |
 | `GET` | `/api/v1/stacks/{stack}` | 🔒 One stack's service status (404 if not enabled) |
 | `POST` | `/api/v1/stacks/{stack\|all}/{up\|down\|restart}` | 🔑 Run a stack action as a background job (`202` + `Location`) |
@@ -205,8 +214,9 @@ publishes the port) and defaults `P4N4_API_TRUSTED_PROXIES` to `172.16.0.0/12`.
 - Passwords are hashed with argon2id. Unknown usernames take as long to reject as wrong
   passwords.
 - Refresh tokens are single-use. Reusing one revokes every token from that sign-in, and a
-  password change signs the user out everywhere. Signing out revokes refresh tokens; an
-  access token stays valid until it expires (at most 1 h).
+  password change signs the user out everywhere. Access tokens carry their sign-in's ID, so
+  signing out, reusing a refresh token, changing a password or removing the user ends them
+  at once rather than when they expire.
 - `/auth/token` and `/auth/refresh` allow 10 attempts per client address, then one every
   6 s (`429` with `Retry-After`).
 - CORS is off by default. Auth uses the `Authorization` header, so cookies are never

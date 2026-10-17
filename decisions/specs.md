@@ -1,7 +1,7 @@
 # p4n4 — Specifications Roadmap
 
-**Version:** 0.1-draft8
-**Status:** Living document (status checked against the code on 2026-10-14)
+**Version:** 0.1-draft9
+**Status:** Living document (status checked against the code on 2026-10-14, and again for the v0.4.0 release set on 2026-10-16)
 **Maintained in:** [raisga/p4n4-docs](https://github.com/raisga/p4n4-docs)
 
 ---
@@ -31,7 +31,7 @@ This document is the canonical specifications roadmap for the p4n4 platform. It 
 
 - Acceptance criteria under `PLANNED` phases are binding requirements for that release.
 - Items under `FUTURE` phases are architectural intent; details will be refined as prior phases complete.
-- **Status pass (2026-10-14):** every feature's status and every acceptance criterion was checked against the code (CLI 0.3.x, p4n4-lib 0.4.0, the stacks after [ADR-005](adr/ADR-005.md)). `[x]` is met; `[ ]` is open, with a note when the code went another way. Statuses: **Done** (all criteria met, or met in substance), **Partial** (shipped with open criteria), **Merged** / **Superseded** (replaced by something else), **Not started**.
+- **Status pass (2026-10-14, updated 2026-10-16):** every feature's status and every acceptance criterion was checked against the code (CLI 0.4.0, p4n4-lib 0.4.0, p4n4-api 0.3.0, p4n4-dashboard 1.3.0, the stacks after [ADR-005](adr/ADR-005.md)). Notes dated 2026-10-14 still hold unless a later note says otherwise. `[x]` is met; `[ ]` is open, with a note when the code went another way. Statuses: **Done** (all criteria met, or met in substance), **Partial** (shipped with open criteria), **Merged** / **Superseded** (replaced by something else), **Not started**.
 - This document does not replace architectural rationale (see [`design.md`](design.md)) or multi-repo structure decisions (see [`../reference/architecture.md`](../reference/architecture.md)).
 
 **Relationship to other documents:**
@@ -55,7 +55,7 @@ This document is the canonical specifications roadmap for the p4n4 platform. It 
 | Version | Status  | Theme                    | Primary Repos Touched                          |
 |---------|---------|--------------------------|------------------------------------------------|
 | v0.1    | SHIPPED (CLI 0.1.0), with open criteria | Foundation | p4n4-cli, p4n4-iot, p4n4-ai, p4n4-edge |
-| v0.2    | PARTLY BUILT: CLI 0.2.0 shipped another scope; System 1 (F-0.2.7) in CLI 0.3.0 | Intelligence Layer | p4n4-cli, p4n4-ai, p4n4-templates |
+| v0.2    | PARTLY BUILT: CLI 0.2.0 shipped another scope; System 1 (F-0.2.7) in CLI 0.3.0; the edge stack merged into ai in CLI 0.4.0 | Intelligence Layer | p4n4-cli, p4n4-ai, p4n4-templates |
 | v0.3    | FUTURE (CLI 0.3.0 is the System 1 release, not this milestone) | Scale & Extensibility | p4n4-cli, p4n4-iot, p4n4-ai, p4n4-helm (new) |
 | v1.0    | FUTURE  | Production Stability     | all repos                                      |
 
@@ -155,7 +155,7 @@ v0.3 Scale & Extensibility
 |------------|----------------------------|-------------------|----------|---------|
 | F-0.1.4    | CLI core commands          | p4n4-cli          | 1 — High | Partial (7 of 10 criteria) |
 | F-0.1.6    | Project manifest           | p4n4-cli          | 1 — High | Partial (another schema; `add` / `remove` stubs) |
-| F-0.1.7    | PyPI publish               | p4n4-cli          | 1 — High | Done (`p4n4` 0.1.0 – 0.3.0 on PyPI) |
+| F-0.1.7    | PyPI publish               | p4n4-cli          | 1 — High | Done (`p4n4` 0.1.0 – 0.4.0 on PyPI) |
 | F-0.1.1    | p4n4-iot compose stack     | p4n4-iot          | 2 — High | Done |
 | F-0.1.2    | p4n4-ai compose stack      | p4n4-ai           | 2 — High | Done (one criterion reworded by the code) |
 | F-0.1.3    | p4n4-edge compose stack    | p4n4-ai (`ei-runner`) | 2 — High | Done; merged into p4n4-ai (ADR-005) |
@@ -265,7 +265,7 @@ p4n4 secret generate      # Prints fresh secrets to stdout; does NOT write .env
 
 **Acceptance Criteria:**
 
-- [x] `pip install p4n4` on Python 3.11, 3.12, and 3.13 succeeds (0.1.0 – 0.3.0 on PyPI, `requires-python >=3.11`; CI tests all three).
+- [x] `pip install p4n4` on Python 3.11, 3.12, and 3.13 succeeds (0.1.0 – 0.4.0 on PyPI, `requires-python >=3.11`; CI tests all three).
 - [x] `p4n4 --version` returns the correct version string matching `pyproject.toml` (`p4n4/__init__.py` holds the same value, bumped by hand).
 - [ ] The `publish.yml` workflow triggers only on tag pushes matching `v*`. *Superseded: it triggers on a published GitHub release (`gh release create`), which creates the tag.*
 - [ ] The package bundles all Jinja2 templates as package data (accessible offline after install). *Superseded: there are no templates to bundle (F-0.1.4); offline scaffolding uses `--source-<layer>`.*
@@ -361,7 +361,7 @@ The following are explicit non-goals for v0.1. Their absence is not a defect.
 
 ## 5. Phase 2: Intelligence Layer (v0.2) — PARTLY BUILT
 
-> **Status (2026-10-14):** CLI 0.2.0 shipped another scope (§3.1). Of this phase, System 1 (F-0.2.7) is well along, F-0.2.2 and F-0.2.3 have their baseline, F-0.2.6 is met in substance by other templates, and F-0.2.1, F-0.2.4 and F-0.2.5 haven't started in the CLI (p4n4-api and p4n4-dashboard cover some of F-0.2.1).
+> **Status (2026-10-14):** CLI 0.2.0 shipped another scope (§3.1). Of this phase, System 1 (F-0.2.7) is built through S4 with its exit criteria open, F-0.2.2 and F-0.2.3 have their baseline, F-0.2.6 is met in substance by other templates, and F-0.2.1, F-0.2.4 and F-0.2.5 haven't started in the CLI (p4n4-api and p4n4-dashboard cover some of F-0.2.1).
 
 ### 5.1 Release Summary
 
@@ -373,7 +373,7 @@ The following are explicit non-goals for v0.1. Their absence is not a defect.
 | F-0.2.4    | p4n4 ei subcommands           | p4n4-cli                  | Not started (stubs; the runner API exists) |
 | F-0.2.5    | Template registry v2          | p4n4-cli, p4n4-templates  | Not started |
 | F-0.2.6    | Official community templates  | p4n4-templates            | Superseded (six other templates) |
-| F-0.2.7    | System 1 typed decisions      | p4n4-ai, p4n4-lib, p4n4-cli, p4n4-iot, p4n4-emu | In progress (S1, S2 and S3 infrastructure built) |
+| F-0.2.7    | System 1 typed decisions      | p4n4-ai, p4n4-lib, p4n4-cli, p4n4-iot, p4n4-emu | In progress (S1–S4 built; exit criteria open) |
 
 ---
 
@@ -1012,13 +1012,13 @@ v1.0 is the first release designated "production-ready." The following criteria 
 
 These features are not in v0.3 and are required for the v1.0 designation:
 
-| Feature                   | Description                                                             | Status (2026-10-14) |
+| Feature                   | Description                                                             | Status (2026-10-16) |
 |---------------------------|-------------------------------------------------------------------------|---------------------|
 | TLS wizard                | `p4n4 init` option to auto-generate self-signed certs or configure ACME via Caddy | Not started |
 | `p4n4 doctor`             | Environment diagnostic: Docker version, RAM, GPU presence, network reachability | Partial: `scripts/doctor` in the monorepo (tools, submodules, venv, ports), not a CLI command |
 | `p4n4-lib` Python package | Shared client code extracted from CLI; published separately to PyPI    | Done (`p4n4-lib` on PyPI) |
-| `p4n4-api` REST gateway   | HTTP API at `:8000` exposing all p4n4 lifecycle operations             | Partial: shipped (0.2.0) with stack status and `up` / `down` / `restart` jobs; no scaffolding or secrets ([REST API](../reference/api.md)) |
-| `p4n4-dashboard` web UI   | Basic project management and stack health visualisation                | Done (p4n4-dashboard 1.2.0, the `dashboard` layer) |
+| `p4n4-api` REST gateway   | HTTP API at `:8000` exposing all p4n4 lifecycle operations             | Partial: shipped (0.3.0) with stack status and `up` / `down` / `restart` jobs; no scaffolding or secrets, and no `api` layer in the CLI yet ([REST API](../reference/api.md)) |
+| `p4n4-dashboard` web UI   | Basic project management and stack health visualisation                | Done (p4n4-dashboard 1.3.0, the `dashboard` layer) |
 | ARM64 CI testing          | GitHub Actions matrix includes `ubuntu-24.04-arm` for all test suites | Partial: the System 1 image and p4n4-emu only |
 
 ---
@@ -1027,7 +1027,7 @@ These features are not in v0.3 and are required for the v1.0 designation:
 
 ### 8.1 Project Manifest Schema (`.p4n4.json`)
 
-> **Status (2026-10-14):** not what the CLI writes. The manifest in use is `schema_version` 1: `project`, `layers` (`iot`, `ai`, `extras`, `dashboard`; the legacy `edge`), `created_at`, an optional `template` object (`name`, `version`) and an optional `dashboard` block (`grafana_path`, `tabs`, `theme`, `home`, `cameras`, `feed`), checked by `p4n4_lib.manifest` and `p4n4_lib.validate` rather than a published schema. The schema below is the original target; `template_orgs` and `federation` remain future.
+> **Status (2026-10-14):** not what the CLI writes. The manifest in use is `schema_version` 1: `project`, `layers` (`iot`, `ai`, `extras`, `dashboard`; the legacy `edge`), `created_at`, an optional `template` object (`name`, `version`) and an optional `dashboard` block (`grafana_path`, `tabs`, `theme`, `home`, `cameras`, `feed`, `vision`, `chats`), checked by `p4n4_lib.manifest` and `p4n4_lib.validate` rather than a published schema. The schema below is the original target; `template_orgs` and `federation` remain future.
 
 Full JSON Schema (draft-07) for `manifest-v1.json`, covering fields through v0.2 with the v0.3 federation extension marked as optional:
 
@@ -1255,6 +1255,11 @@ All stack environment variables, their owning stack, and whether they are cross-
 | `p4n4-extras`     | push, PR             | The same as p4n4-iot, every included extra and `_template/` included |
 | `p4n4-cli`        | push, PR             | `ruff check .`, `pytest` (Python 3.11, 3.12, 3.13 matrix) |
 | `p4n4-cli`        | release published    | `python -m build`, PyPI upload                            |
+| `p4n4-lib`        | push, PR; release published | `ruff check`, `pytest`; PyPI upload on a release    |
+| `p4n4-api`        | push, PR; `v*` tags  | `ruff check`, `pytest` (3.11–3.13); multi-arch GHCR image with smoke tests and Trivy (`image.yml`) |
+| `p4n4-dashboard`  | push, PR; `v*` tags  | Format, analyze, tests, brand checks and five platform builds (`ci.yml`, disabled on GitHub to save Actions minutes); multi-arch GHCR image (`image.yml`) |
+| `p4n4-emu`        | push, PR; tags; weekly | `ruff check`, `pytest` with compose tests against the stacks; integration job on demand and weekly; sensor-simulator image; PyPI publish on a release (not run yet) |
+| `p4n4-hw`         | push, PR             | Tests of the RPi5 scripts and `p4n4-hwd`                  |
 | `p4n4-templates`  | push, PR             | `scripts/validate.py`, each template's `tests/smoke.sh`   |
 | `p4n4-docs`       | —                    | None yet (`mkdocs gh-deploy` once the site exists)         |
 | `p4n4-helm`       | push, PR (v0.3+)     | `helm lint`, `helm template`                              |
@@ -1275,7 +1280,7 @@ CLI repo (p4n4-cli)
 [ ] p4n4-lib's layer registry updated if a stack's files or required keys changed
 [ ] All CI checks green on main
 
-Stack repos (as applicable)
+Stack repos (as applicable; not done so far: `p4n4 init` scaffolds them from `main`)
 [ ] p4n4-iot tagged vX.Y.Z
 [ ] p4n4-ai tagged vX.Y.Z
 [ ] p4n4-extras tagged vX.Y.Z
@@ -1284,15 +1289,15 @@ Registry (as applicable)
 [ ] p4n4-templates: each changed template's `template.yaml` version bumped
 [ ] New template README files reviewed
 
-Publish
-[ ] git tag vX.Y.Z && git push origin vX.Y.Z
+Publish (order and commands: project/releasing.md)
+[ ] p4n4-lib released first; the CLI, API and emu locks updated to it
+[ ] gh release create vX.Y.Z --notes-file release-notes/vX.Y.Z.md (creates the tag)
 [ ] PyPI publish.yml workflow triggered and completed successfully
 [ ] pip install p4n4==X.Y.Z smoke-tested
 
 Post-release
-[ ] GitHub Release created with changelog notes
 [ ] p4n4-docs specs.md status column updated to COMPLETE
-[ ] p4n4-docs mkdocs deploy triggered
+[ ] p4n4-docs mkdocs deploy triggered (once the site exists)
 [ ] Announcement posted on relevant channels
 ```
 
@@ -1396,3 +1401,4 @@ Post-release
 | 0.1-draft6 | raisga  | F-0.2.7 S3: calibration, drift alerts (`system1/drift/<set>`, the `system1-drift` webhook, `SYSTEM1_ALERT_TOKEN`), U7 labels, the ranking gate; the U3–U6 sets deferred to S4 |
 | 0.1-draft7 | raisga  | F-0.2.7 S4: fine-tuning (`make system1-train`, `system1/train/`), `SYSTEM1_REPO`, `operator-intake` v4; the U3–U6 sets still drafts |
 | 0.1-draft8 | raisga  | ADR-005 (edge merged into ai; p4n4-extras), and a status pass: every feature's status and acceptance criterion checked against the code on 2026-10-14; status notes where the code went another way (§8.1–8.4 included) |
+| 0.1-draft9 | raisga  | The v0.4.0 release set (CLI and p4n4-lib 0.4.0, p4n4-api 0.3.0, p4n4-dashboard 1.3.0): PyPI versions, System 1 through S4, the manifest's `vision` and `chats`, v1.0 table, CI matrix for every repo, release checklist as releases are actually cut |

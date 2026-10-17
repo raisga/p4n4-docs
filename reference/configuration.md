@@ -38,7 +38,28 @@ In every layer:
 ## iot layer
 
 [IoT stack](../stacks/iot-stack.md). `COMPOSE_PROFILES` default:
-`mqtt,influxdb,node-red,grafana`; also available: `telegraf`.
+`mqtt,influxdb,node-red,grafana`; also available: `telegraf`, `loki`, `alloy` (needs `loki`)
+and `mqtt-ui`.
+
+### General
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `LOG_MAX_SIZE` / `LOG_MAX_FILE` | `10m` / `3` | Docker's log rotation per container: rotated at the size, this many files kept |
+| `P4N4_SUBNET` | `172.20.0.0/16` | Subnet of `p4n4-net`. Change it when the range overlaps a VPN or another network, then recreate the network. p4n4 (CLI) 0.4.0 ignores it when it creates the network; 0.4.1 reads it ([Troubleshooting](../guides/troubleshooting.md)) |
+
+### Ports
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `MQTT_BIND` | `0.0.0.0` | Host address the three device listeners are published on |
+| `INFLUXDB_PORT` / `INFLUXDB_BIND` | `8086` / `0.0.0.0` | InfluxDB's host port and address |
+| `NODE_RED_PORT` / `NODE_RED_BIND` | `1880` / `0.0.0.0` | Node-RED's |
+| `GRAFANA_PORT` / `GRAFANA_BIND` | `3000` / `0.0.0.0` | Grafana's |
+| `MQTT_UI_PORT` / `MQTT_UI_BIND` | `8081` / `0.0.0.0` | MQTTX Web's (`mqtt-ui` profile) |
+
+`127.0.0.1` keeps a service on this machine. The device listeners' ports are under
+Mosquitto below.
 
 ### Mosquitto
 
@@ -80,9 +101,9 @@ Inbound only: the local broker subscribes on another broker and republishes loca
 | `INFLUXDB_ORG` | `ming` | Organisation (shared) |
 | `INFLUXDB_TOKEN` | `p4n4-stack-token` | All-access API token (shared). Generated, **setup-only** |
 | `INFLUXDB_BUCKET` / `INFLUXDB_RAW_RETENTION` | `raw_telemetry` / `30d` | Primary bucket and its retention (first start only) |
-| `INFLUXDB_BUCKET_PROCESSED` | `processed_metrics` | Downsampled data, 365 days |
-| `INFLUXDB_BUCKET_AI_EVENTS` | `ai_events` | Inference results, System 1 decisions, AI annotations; kept forever |
-| `INFLUXDB_BUCKET_HEALTH` | `system_health` | Telegraf's host and broker metrics, 7 days |
+| `INFLUXDB_BUCKET_PROCESSED` / `INFLUXDB_PROCESSED_RETENTION` | `processed_metrics` / `365d` | Hourly rollups of the primary bucket |
+| `INFLUXDB_BUCKET_AI_EVENTS` / `INFLUXDB_AI_EVENTS_RETENTION` | `ai_events` / `0` (forever) | Inference results, System 1 decisions, AI annotations |
+| `INFLUXDB_BUCKET_HEALTH` / `INFLUXDB_HEALTH_RETENTION` | `system_health` / `7d` | Telegraf's host and broker metrics |
 | `INFLUXDB_SANDBOX_BUCKET` / `INFLUXDB_SANDBOX_RETENTION` | `sandbox` / `30d` | Readings published under `sandbox/` |
 
 ### Grafana
@@ -98,6 +119,8 @@ Inbound only: the local broker subscribes on another broker and republishes loca
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `NODE_RED_USER` / `NODE_RED_PASSWORD` | `admin` / `adminpassword` | Editor and Admin API login; an empty password refuses every login. Generated, rotated by `p4n4 secret rotate` |
+| `NODE_RED_CREDENTIAL_SECRET` | *(empty)* | Key for credentials saved in flows. Empty: generated inside the Node-RED volume and lost with it. **Setup-only**: changing it makes saved credentials unreadable |
+| `NODE_RED_PACKAGES` | *(empty)* | npm packages installed at start, comma-separated, e.g. `@flowfuse/node-red-dashboard@1` |
 | `SYSTEM1_API_KEY` | *(empty)* | The `p4n4-system1` subflow's bearer token (shared). Empty: the subflow answers with `msg.error` |
 | `SYSTEM1_ALERT_TOKEN` | *(empty)* | What Grafana's System 1 drift alerts send to n8n (shared). Empty: n8n refuses them |
 
@@ -107,6 +130,12 @@ Inbound only: the local broker subscribes on another broker and republishes loca
 |-----|---------|---------|
 | `TELEGRAF_HOSTNAME` | `p4n4` | The `host` tag on its metrics |
 | `TELEGRAF_INTERVAL` | `10s` | Collection interval |
+
+### Loki
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `LOKI_RETENTION` | `168h` | How long container logs are kept |
 
 ## ai layer
 

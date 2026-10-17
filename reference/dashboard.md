@@ -11,7 +11,8 @@ It runs on Linux, macOS, Windows, Android and iOS, and can be white-labelled per
 | **Edge** | CPU, memory, SoC temperature and inference latency, with 2 minutes of history (10 or 30 in Settings → Appearance) | A metrics URL, by default `GET /api/v1/edge/metrics` ([contract](#edge-metrics-contract)); has a demo mode |
 | **Assistant** | Chat with a local model or a stateful agent; admins and power users choose the model or agent for everyone | p4n4-api `POST /api/v1/agents/chat` (Ollama, streaming) or `/api/v1/agents/{id}/chat` (Letta), with the choice in `GET/PUT /api/v1/agents/config` |
 | **Grafana** | Embedded Grafana, in kiosk mode by default and in the app's light or dark theme | `http://<host>:3000` |
-| **Video** | Live camera feeds from the edge device, one at a time or in a grid. Admins can switch to demo cameras (openly licensed sample clips) | Any MJPEG stream, JPEG snapshot URL, or video file (`.mp4`, `.webm`, `.mov`, `.m3u8`) |
+| **Video** | Live camera feeds from the edge device, in a grid or one at a time, with the project's vision overlay when it has one. Admins can switch to demo cameras (openly licensed sample clips) | Any MJPEG stream, JPEG snapshot URL, or video file (`.mp4`, `.webm`, `.mov`, `.m3u8`); the overlay from `GET /api/v1/project/vision` |
+| **Feed** | Opt-in (`feed` in the brand's or project's tabs): the project's live events and alerts; operators and admins act on alerts | p4n4-api `GET /api/v1/feed` and `POST /api/v1/feed/{id}/action`, which relay the feed `.p4n4.json` names |
 
 ## Admin, power and normie views
 
@@ -141,7 +142,11 @@ every 30 s while the API is unreachable:
 | `dashboard.tabs` | Brand tabs outside the list are hidden, in both views |
 | `dashboard.grafana_path` | The Grafana tab opens this page, unless the deployment has its own path. Project defaults come before brand defaults |
 | `dashboard.home` | A Markdown file, relative to the project, shown at the top of Home (default `HOME.md`), or its translation for the app's language (`HOME.es.md`). Links like `[Activity](tab:feed)` open that tab, and `[Is any unit on warning?](ask:)` asks the Assistant. A missing or empty file shows nothing; `p4n4 validate` reports a named file that's missing |
-| `dashboard.cameras` | The Video tab's cameras, until the deployment saves its own; they come before a brand `videoUrl`. Each is `{id, name}` plus an absolute `url`, or a `port` and `path` on the connected host |
+| `dashboard.cameras` | The Video tab's cameras, until the deployment saves its own; they come before a brand `videoUrl`. Each is `{id, name}` plus an absolute `url`, a `port` and `path` on the connected host, or a `device` camera (`back` or `front`) of the phone or tablet |
+| `dashboard.feed` | Where the Feed tab's items come from: `{url, token?}`, with `token` naming the layer `.env` variable (`{layer, env}`) p4n4-api sends upstream, so it never reaches a browser |
+| `dashboard.vision` | The Video tab's overlay: `{file, live?}`, a JSON file in the project (labels, alert rules, each camera's recorded boxes and behaviours) and optionally the WebSocket of live detections. Alerts it raises pop up as toasts on every tab |
+| `dashboard.chats` | The bot service whose chats (e.g. Telegram) get the project's alerts: `{url, token?}`, as for `feed`. Admins link and unlink chats in Settings → Chats |
+| `dashboard.theme` | Not read by the app: the white-label theme directory the project's dashboard is built with (`dart run tool/brand.dart install <project>`, [White-label](#white-label)) |
 
 Without the API (or before signing in), nothing changes: every
 brand tab and stack is shown. See the [greenhouse use case](https://github.com/raisga/p4n4-templates/blob/main/docs/use-cases/greenhouse-telemetry.md).

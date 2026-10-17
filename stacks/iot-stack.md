@@ -11,7 +11,10 @@ The IoT stack (`p4n4-iot`) is the foundation of every p4n4 deployment. It owns t
 | InfluxDB | `p4n4-influxdb` | `influxdb:2.9` | 8086 | Time-series database | `influxdb` (on) |
 | Node-RED | `p4n4-node-red` | `nodered/node-red:5.0` | 1880 | Flow-based data routing | `node-red` (on) |
 | Grafana | `p4n4-grafana` | `grafana/grafana:13.0` | 3000 | Dashboards | `grafana` (on) |
-| Telegraf | `p4n4-telegraf` | `telegraf:1.40` | — | Host and broker metrics into `system_health` | `telegraf` (off) |
+| Telegraf | `p4n4-telegraf` | `telegraf:1.40` | — | Host and broker metrics into `system_health`, for the **Stack Health** dashboard | `telegraf` (off) |
+| Loki | `p4n4-loki` | `grafana/loki:3.7` | — | Stores container logs, for the **Stack Logs** dashboard and Explore | `loki` (off) |
+| Alloy | `p4n4-alloy` | `grafana/alloy:v1.20.1` | — | Collects the logs of every `p4n4-*` container into Loki (needs `loki`) | `alloy` (off) |
+| MQTTX Web | `p4n4-mqtt-ui` | `emqx/mqttx-web:v1.13.1` | 8081 | MQTT web client over the broker's WebSocket port | `mqtt-ui` (off) |
 
 Images are pinned to a minor version: `docker compose pull` brings in patch releases, but
 new features don't arrive unannounced. Grafana uses `grafana/grafana`, the OSS image
@@ -24,8 +27,9 @@ Node-RED and Grafana wait for their dependencies' healthchecks before starting.
 Every service sits in a [Compose profile](https://docs.docker.com/compose/how-tos/profiles/)
 of its own name, and `COMPOSE_PROFILES` in `.env` lists the ones that start. The default is
 the MING stack (`mqtt,influxdb,node-red,grafana`); add `telegraf` for host metrics (CPU,
-memory, disk, network) and Mosquitto broker stats. Run `docker compose up -d --remove-orphans`
-after changing it. Node-RED needs `mqtt` and `influxdb`, and Grafana needs `influxdb`.
+memory, disk, network) and Mosquitto broker stats, `loki,alloy` for container logs, and
+`mqtt-ui` for a web MQTT client. Run `docker compose up -d --remove-orphans` after changing
+it. Node-RED needs `mqtt` and `influxdb`, Grafana needs `influxdb`, and Alloy needs `loki`.
 Telegraf has no hard dependencies: it retries the broker and buffers writes until InfluxDB is
 up. Without a `COMPOSE_PROFILES` line, plain `docker compose up` starts nothing; the `make`
 targets fall back to the MING stack.
@@ -41,10 +45,23 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: ${P4N4_SUBNET:-172.20.0.0/16}
 ```
 
-All other stacks declare it as `external: true`.
+All other stacks declare it as `external: true`. If `172.20.0.0/16` overlaps a VPN or another
+network, set `P4N4_SUBNET` in the IoT `.env`, stop every p4n4 stack, run
+`docker network rm p4n4-net` and start again. p4n4 (CLI) 0.4.0 creates the network itself
+on the default range whatever `P4N4_SUBNET` says; 0.4.1 follows it
+([Troubleshooting](../guides/troubleshooting.md)).
+
+### Ports
+
+Each published service has a host port and a bind address in `.env`: `MQTT_PORT`,
+`MQTT_WS_PORT`, `MQTT_TLS_PORT` and `MQTT_BIND`; `INFLUXDB_PORT` / `INFLUXDB_BIND`;
+`NODE_RED_PORT` / `NODE_RED_BIND`; `GRAFANA_PORT` / `GRAFANA_BIND`; `MQTT_UI_PORT` /
+`MQTT_UI_BIND`. The binds default to `0.0.0.0` (every interface); `127.0.0.1` keeps a
+service on this machine, for example InfluxDB behind a proxy. Telegraf, Loki and Alloy
+publish nothing.
 
 ## Topics and storage
 
@@ -77,19 +94,36 @@ points have `agreed`, `abstain`, `set_version` and `id`.
 | Bucket | Retention | Purpose |
 |--------|-----------|---------|
 | `raw_telemetry` | 30 days | Inbound sensor readings and inference results (primary bucket) |
-| `processed_metrics` | 365 days | Downsampled / aggregated data |
+| `processed_metrics` | 365 days | Hourly rollups of `raw_telemetry` |
 | `ai_events` | Infinite | Edge runner results, AI annotations, anomaly flags |
 | `system_health` | 7 days | Stack component health metrics |
 | `sandbox` | 30 days | Development and testing |
 
 `raw_telemetry` is created by InfluxDB's setup; `scripts/init-buckets.sh` creates the rest.
-Grafana gets a datasource per bucket.
+Grafana gets a datasource per bucket. Names and retentions come from `.env`
+(`INFLUXDB_BUCKET*`, `INFLUXDB_*_RETENTION`) and apply when InfluxDB first creates the
+buckets; change an existing bucket's retention with `influx bucket update`.
+
+**Hourly rollups.** The `p4n4-rollup-hourly` InfluxDB task runs five minutes past every
+hour and writes the mean, min, max and count of each numeric field in `raw_telemetry` over
+the hour before to `processed_metrics` (`<field>_mean`, `_min`, `_max`, `_count`, same
+measurement and tags, timestamped at the start of the hour). Readings that arrive after
+their hour was rolled up aren't included. Older installs get the task and any missing
+bucket with `make influx-init`.
 
 ## Logs
 
-Mosquitto logs to stdout only, so `docker logs p4n4-mqtt` shows its log and Docker's log
-driver rotates it. (It used to also write `/mosquitto/log/mosquitto.log`, which it never
-rotated; the `mosquitto-log` volume is gone.)
+Every service logs to stdout, and Docker rotates each container's log at `LOG_MAX_SIZE`
+(`10m`), keeping `LOG_MAX_FILE` (`3`) files. Mosquitto no longer writes a log file of its
+own.
+
+With the `loki` and `alloy` profiles, Alloy reads the logs of every container whose name
+starts with `p4n4-` (this stack, the ai stack, extras and the dashboard), labels them with
+`container`, `service` and `project`, and ships them to Loki, which keeps them for
+`LOKI_RETENTION` (`168h`). Grafana's **Stack Logs** dashboard shows them with a container
+filter and a search box; **Explore** with the Loki data source runs any LogQL query. Alloy
+reads the Docker socket read-only, but anything that can read it sees every container's
+configuration, environment variables included.
 
 ## Node-RED
 
@@ -102,6 +136,16 @@ Flows live in `config/node-red/flows/flows.json`. Compose mounts the `flows/` di
 rather than the file, because Node-RED saves by renaming a temporary file over
 `flows.json`, so deploying from the editor writes straight to the project. Commit the file
 to keep your changes.
+
+`NODE_RED_CREDENTIAL_SECRET` encrypts the credentials saved in flows
+(`flows/flows_cred.json`). Left empty, Node-RED generates a key inside its data volume, and
+the credentials are lost with the volume; set it once, since changing it later makes them
+unreadable.
+
+`NODE_RED_PACKAGES` lists npm packages (comma-separated) installed when the container
+starts, where the editor's **Manage palette** installs them; they're reinstalled only when
+the list changes. For [Node-RED Dashboard 2](https://dashboard.flowfuse.com/) operator UIs
+at `http://<host>:1880/dashboard`: `NODE_RED_PACKAGES=@flowfuse/node-red-dashboard@1`.
 
 ## System 1
 
@@ -147,6 +191,9 @@ stack logs its decisions and feedback (above) and adds three things.
 |----------|---------|-------------|
 | `TZ` | `UTC` | Container timezone |
 | `COMPOSE_PROFILES` | `mqtt,influxdb,node-red,grafana` | Services that start (see above) |
+| `LOG_MAX_SIZE` / `LOG_MAX_FILE` | `10m` / `3` | Docker's log rotation per container |
+| `P4N4_SUBNET` | `172.20.0.0/16` | Subnet of `p4n4-net` (see [Network](#network)) |
+| `*_PORT` / `*_BIND` | see [Ports](#ports) | Host port and address of each published service |
 | `MQTT_USER` / `MQTT_PASSWORD` | *(empty)* | Device login; with a password set, the device listeners require a login (see [Mosquitto authentication](#mosquitto-authentication)) |
 | `MQTT_PORT` / `MQTT_WS_PORT` | `1883` / `9001` | Host ports of the device listeners (TCP and WebSocket) |
 | `MQTT_TLS_CERT_FILE` / `MQTT_TLS_KEY_FILE` | *(empty)* | Server certificate and key in `config/mosquitto/certs/`; both set: a TLS listener on `MQTT_TLS_PORT` (default `8883`) |
@@ -154,14 +201,17 @@ stack logs its decisions and feedback (above) and adds three things.
 | `INFLUXDB_ORG` | `ming` | InfluxDB organisation (shared with other stacks) |
 | `INFLUXDB_TOKEN` | `p4n4-stack-token` | InfluxDB API token (shared with other stacks) |
 | `INFLUXDB_BUCKET` / `INFLUXDB_RAW_RETENTION` | `raw_telemetry` / `30d` | Primary bucket and its retention (first run only) |
-| `INFLUXDB_BUCKET_PROCESSED` | `processed_metrics` | Downsampled data |
-| `INFLUXDB_BUCKET_AI_EVENTS` | `ai_events` | AI events |
-| `INFLUXDB_BUCKET_HEALTH` | `system_health` | Stack health (Telegraf) |
+| `INFLUXDB_BUCKET_PROCESSED` / `INFLUXDB_PROCESSED_RETENTION` | `processed_metrics` / `365d` | Hourly rollups |
+| `INFLUXDB_BUCKET_AI_EVENTS` / `INFLUXDB_AI_EVENTS_RETENTION` | `ai_events` / `0` (forever) | AI events |
+| `INFLUXDB_BUCKET_HEALTH` / `INFLUXDB_HEALTH_RETENTION` | `system_health` / `7d` | Stack health (Telegraf) |
 | `INFLUXDB_SANDBOX_BUCKET` / `INFLUXDB_SANDBOX_RETENTION` | `sandbox` / `30d` | Sandbox bucket |
 | `GRAFANA_USER` / `GRAFANA_PASSWORD` | `admin` / `adminpassword` | Grafana admin login |
 | `GRAFANA_ALLOW_EMBEDDING` | `false` | Lets p4n4-dashboard show Grafana in a frame; `p4n4 init` sets it with the dashboard layer |
 | `GRAFANA_SUB_PATH` | `/` | `/grafana/` when p4n4-dashboard proxies Grafana on its own origin |
 | `NODE_RED_USER` / `NODE_RED_PASSWORD` | `admin` / *(empty in Compose, `adminpassword` in `.env.example`)* | Node-RED editor login |
+| `NODE_RED_CREDENTIAL_SECRET` | *(empty: generated in the volume)* | Key for credentials saved in flows (see [Node-RED](#node-red)) |
+| `NODE_RED_PACKAGES` | *(empty)* | npm packages installed at start |
+| `LOKI_RETENTION` | `168h` | How long Loki keeps container logs |
 | `TELEGRAF_HOSTNAME` / `TELEGRAF_INTERVAL` | `p4n4` / `10s` | Telegraf's `host` tag and collection interval |
 | `SYSTEM1_API_KEY` | *(empty)* | The `p4n4-system1` subflow's bearer token, the AI stack's value; empty: the subflow answers with `msg.error` |
 | `SYSTEM1_ALERT_TOKEN` | *(empty)* | What Grafana's System 1 drift alerts send to n8n, the AI stack's value; empty: n8n refuses them |
@@ -223,5 +273,22 @@ make buckets                  # list InfluxDB buckets
 make test-mqtt                # publish test readings
 make test-sandbox             # publish test readings to the sandbox bucket
 make bridge-status            # external broker bridge: connected or not
+make mqtt-user NAME=sensor-001          # add a device login (prompts for the password)
+make mqtt-user-delete NAME=sensor-001   # remove it
+make influx-init              # create missing buckets and the hourly rollup task
+make backup                   # back up InfluxDB, Grafana, Node-RED and Mosquitto data
+make restore BACKUP=backups/<timestamp>
 make clean                    # stop and remove data volumes
 ```
+
+## Backup and restore
+
+`make backup` writes `backups/<timestamp>/`: InfluxDB's own backup (every bucket, with its
+users and tokens) and the Grafana, Node-RED and Mosquitto data volumes as `.tar.gz` files,
+taken while the services run (stopped ones are skipped). `.env`, `config/` and Loki's logs
+aren't included: keep `.env` with the backups and `config/` in git.
+
+`make restore BACKUP=…` asks first, then replaces the data of each service in the backup;
+the services must exist (`make up` first on a new machine). Use the `.env` the backup was
+taken with: InfluxDB's tokens come back from the backup, and Node-RED, Telegraf and Grafana
+authenticate with `INFLUXDB_TOKEN`.
