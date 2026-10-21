@@ -86,6 +86,7 @@ Interactive docs are at `/swagger-ui` and the spec at `/openapi.json`.
 | `GET` | `/api/v1/project/vision` | 🔒 The Video tab's vision overlay: the JSON file `dashboard.vision.file` names, plus `dashboard.vision.live` as `live`. `204` when there's none, or the file is missing, invalid, over 8 MiB or outside the project |
 | `GET` | `/api/v1/feed` | 🔒 The Feed tab's items from the upstream `dashboard.feed` names (`limit`, `before`); a normie's items have no `actions`. `404` when the project has no feed |
 | `POST` | `/api/v1/feed/{id}/action` | 🔒 `operator` or `admin`: act on an item (`{action}`), relayed to the upstream with the user's name (audited) |
+| `GET` | `/api/v1/feed/{id}/image` | 🔒 An item's picture (one with `"image": true`), relayed from the upstream's `<url>/<id>/image` with the feed's token: JPEG, PNG or WebP, up to 8 MB |
 | `GET` | `/api/v1/chats` | 🔑 The chats the project's bot serves (e.g. Telegram), from the service `dashboard.chats` names; its token stays server side |
 | `POST` | `/api/v1/chats/codes` | 🔑 A one-time code that links a chat (audited) |
 | `DELETE` | `/api/v1/chats/{id}` | 🔑 Unlink a chat: no more alerts, and the bot stops answering it (audited) |

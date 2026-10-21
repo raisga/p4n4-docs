@@ -12,7 +12,7 @@ It runs on Linux, macOS, Windows, Android and iOS, and can be white-labelled per
 | **Assistant** | Chat with a local model or a stateful agent; admins and power users choose the model or agent for everyone | p4n4-api `POST /api/v1/agents/chat` (Ollama, streaming) or `/api/v1/agents/{id}/chat` (Letta), with the choice in `GET/PUT /api/v1/agents/config` |
 | **Grafana** | Embedded Grafana, in kiosk mode by default and in the app's light or dark theme | `http://<host>:3000` |
 | **Video** | Live camera feeds from the edge device, in a grid or one at a time, with the project's vision overlay when it has one. Admins can switch to demo cameras (openly licensed sample clips) | Any MJPEG stream, JPEG snapshot URL, or video file (`.mp4`, `.webm`, `.mov`, `.m3u8`); the overlay from `GET /api/v1/project/vision` |
-| **Feed** | Opt-in (`feed` in the brand's or project's tabs): the project's live events and alerts; operators and admins act on alerts | p4n4-api `GET /api/v1/feed` and `POST /api/v1/feed/{id}/action`, which relay the feed `.p4n4.json` names |
+| **Feed** | Opt-in (`feed` in the brand's or project's tabs): the project's live events and alerts; operators and admins act on alerts. An item opens in full, with its picture (an alert's evidence) and link, for reviewing one after another from the keyboard (`1`, `2`… act, `J`/`K` next and previous) | p4n4-api `GET /api/v1/feed`, `POST /api/v1/feed/{id}/action` and `GET /api/v1/feed/{id}/image`, which relay the feed `.p4n4.json` names |
 
 ## Admin, power and normie views
 

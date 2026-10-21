@@ -50,6 +50,22 @@ gh release create v0.4.1 --repo raisga/p4n4-lib --title v0.4.1 --notes-file lib/
 gh release create v0.4.1 --repo raisga/p4n4-cli --title v0.4.1 --notes-file cli/release-notes/v0.4.1.md
 ```
 
+## p4n4-dashboard 1.4.0 and 1.5.0 (pending)
+
+Neither is tagged or published. 1.4.0 (logs, devices, fleet, thresholds) is committed with
+`dashboard/release-notes/v1.4.0.md`. 1.5.0 opens the web apps inside the dashboard (the
+service viewer and its `/svc/<id>/` routes) and adds the Feed's review page;
+`dashboard/release-notes/v1.5.0.md` is written and `DASHBOARD_VERSION` pins 1.5.0.
+
+- Both work with p4n4-api 0.3.0. 1.5.0's Feed pictures and links need p4n4-api's
+  `GET /api/v1/feed/{id}/image` relay, which is on its `main` after 0.3.0 with no release yet.
+- 1.5.0's Node-RED and n8n routes need `NODE_RED_ADMIN_ROOT` (p4n4-iot) and `N8N_PATH`
+  (p4n4-ai) on the stacks' `main`. The stacks get no release.
+
+```bash
+gh release create v1.5.0 --repo raisga/p4n4-dashboard --title v1.5.0 --notes-file dashboard/release-notes/v1.5.0.md
+```
+
 ## Past release sets
 
 Each was published in the table's order: p4n4-lib first, then the two images together, then

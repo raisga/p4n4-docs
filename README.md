@@ -40,6 +40,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Troubleshooting](guides/troubleshooting.md) | Common failures and their fixes: container names, `p4n4-net`, logins, memory, the Pi 5 |
 | [IoT Stack](stacks/iot-stack.md) | Mosquitto · Node-RED · InfluxDB · Grafana reference |
 | [AI Stack](stacks/ai-stack.md) | Ollama · Letta · n8n reference |
+| [Incident Investigator](reference/agent.md) | The `agent` profile: durable, read-only investigation of anomaly alerts |
 | [Edge Inference](stacks/edge-inference.md) | The AI stack's inference runner (`ei-runner`): model backends, HTTP API |
 | [Extras](stacks/extras.md) | Optional services: core vs extras, adding a service |
 | [Migrating from the edge stack](guides/migrating-from-edge.md) | `p4n4 migrate edge`, by hand, and what changed names |
@@ -73,6 +74,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [ADR-004](decisions/adr/ADR-004.md) | An encoder classifier for bounded decisions (System 1) |
 | [ADR-005](decisions/adr/ADR-005.md) | Edge inference joins the AI stack; p4n4-edge becomes p4n4-extras |
 | [AI Harness (draft)](decisions/ai-harness.md) | Building p4n4 projects with coding agents: harness tools, community extras (`stacks/extras/`), the p4n4 Car reference project and its OBD-II spike |
+| [Incident Investigator: Phase 2](decisions/agent-phase2.md) | Actions for the durable agent: unsafe replay, operation IDs, human approval (design note) |
 | [System 1](decisions/system1.md) | Fast typed decisions with Laya: spike results, rules of use, architecture, phases (S1, S2, the S3 infrastructure and S4 implemented) |
 | [Recording in core (draft)](decisions/recording.md) | `p4n4 record`: demo videos per theme, role and viewport from declarative scenarios |
 | [Releasing](project/releasing.md) | Release set order, what to do before publishing, `gh release` commands, how to write a release body |

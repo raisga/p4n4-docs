@@ -48,6 +48,8 @@ is set ([Security guide](../guides/security.md#mosquitto-authentication)).
 | `alerts/<device-id>/critical` | Node-RED flows → n8n *Incident Escalation* | Other `alerts/<device-id>/<alert-type>` follow the same convention |
 | `alerts/escalated` | n8n → consumers | Every critical alert, with the team (or suggested team) and on-call |
 | `alerts/escalated/summary` | n8n → consumers | Ollama's summary of an escalation, after it |
+| `alerts/<device-id>/anomaly` | Node-RED flows → the [incident investigator](agent.md) | `{device, anomaly_score, label, threshold, timestamp}`, QoS 1. No base flow publishes it yet; the `mqtt-influx-grafana-ollama-pidurable` template's does |
+| `agent/investigations/<device-id>` | incident investigator → consumers | `{incident, device, status, cause, confidence, summary, error, alert_at, started_at, finished_at}`, QoS 1, not retained; also `ai_events`, measurement `agent_investigation`, tags `device`, `status` |
 
 ## System 1 and operators
 

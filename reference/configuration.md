@@ -194,6 +194,17 @@ Inbound only: the local broker subscribes on another broker and republishes loca
 | `MQTT_USER` / `MQTT_PASSWORD` | *(empty)* | Only for a broker other than the stack's own; the internal listener needs no login |
 | `MQTT_TOPIC_INPUT` / `MQTT_TOPIC_RESULTS` | `sensors/+/raw` / `inference/{device}/result` | See [MQTT topics](mqtt-topics.md) |
 
+### Incident investigator (`agent`)
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `AGENT_API_TOKEN` | *(empty)* | Bearer token of the status API's investigation list, 32+ characters. Empty: the agent refuses to start. Generated, rotated |
+| `AGENT_MODEL` | `llama3.2` | Ollama model the agent reasons with; it must call tools and be pulled |
+| `AGENT_SQLITE_SYNC` | `FULL` | SQLite `synchronous` of the agent's store: `FULL` survives power loss, `NORMAL` only crashes |
+| `AGENT_BIND` / `AGENT_PORT` | `127.0.0.1` / `8095` | Where the status API is published |
+| `AGENT_ALERT_WINDOW_S` | `900` | Alerts for one device within one window are one investigation |
+| `AGENT_IMAGE`, `AGENT_CONTEXT_TOKENS`, `AGENT_ALERT_TOPIC`, `AGENT_RESULT_TOPIC`, `AGENT_MAX_TOOL_CALLS`, `AGENT_INVESTIGATION_TIMEOUT_S`, `AGENT_HISTORY_KEEP`, `AGENT_LETTA_AGENT` | | See [Incident investigator](agent.md#environment-variables) |
+
 ### InfluxDB (shared with iot)
 
 `INFLUXDB_TOKEN`, `INFLUXDB_ORG`, `INFLUXDB_BUCKET` (n8n's starter workflows read readings
@@ -219,7 +230,7 @@ Both have their own `.env` and settings:
 
 | | Keys | `p4n4 secret rotate` |
 |-|------|----------------------|
-| **Rotated** | `NODE_RED_PASSWORD`, `LETTA_SERVER_PASSWORD`, `SYSTEM1_API_KEY`, `OPERATOR_INTAKE_TOKEN`, `SYSTEM1_ALERT_TOKEN` | Replaces them in every layer; the next `p4n4 up` applies them |
+| **Rotated** | `NODE_RED_PASSWORD`, `LETTA_SERVER_PASSWORD`, `SYSTEM1_API_KEY`, `OPERATOR_INTAKE_TOKEN`, `SYSTEM1_ALERT_TOKEN`, `AGENT_API_TOKEN` | Replaces them in every layer; the next `p4n4 up` applies them |
 | **Setup-only** | `INFLUXDB_PASSWORD`, `INFLUXDB_TOKEN`, `GRAFANA_PASSWORD`, `N8N_ENCRYPTION_KEY` | Leaves them alone: change them in the service, then in `.env` |
 | **External** | `MQTT_REMOTE_PASSWORD` | Never generated or rotated: the remote broker issued it |
 
