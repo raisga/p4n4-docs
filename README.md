@@ -206,11 +206,12 @@ See the [Security guide](guides/security.md) for the full hardening walkthrough.
 
 | Component | Version | Ships as |
 |-----------|---------|----------|
-| p4n4 (CLI) | 0.4.0 | PyPI `p4n4` |
-| p4n4-lib | 0.4.0 | PyPI `p4n4-lib` |
-| p4n4-api | 0.3.0 | `ghcr.io/raisga/p4n4-api` (amd64, arm64) |
-| p4n4-dashboard | 1.3.0 | `ghcr.io/raisga/p4n4-dashboard` (amd64, arm64); desktop and mobile builds from CI |
+| p4n4 (CLI) | 0.4.2 | PyPI `p4n4` |
+| p4n4-lib | 0.4.2 | PyPI `p4n4-lib` |
+| p4n4-api | 0.4.0 | `ghcr.io/raisga/p4n4-api` (amd64, arm64) |
+| p4n4-dashboard | 1.5.0 | `ghcr.io/raisga/p4n4-dashboard` (amd64, arm64); desktop and mobile builds from CI |
 | p4n4-system1 | 0.1.0 | `ghcr.io/raisga/p4n4-system1` (amd64, arm64) |
+| p4n4-agent | 0.1.0 | `ghcr.io/raisga/p4n4-agent` (amd64, arm64), the ai stack's `agent` profile |
 | p4n4-iot, p4n4-ai, p4n4-extras | untagged | Scaffolded from each repo's `main` by `p4n4 init` |
 | p4n4-emu, p4n4-hw | 0.1.0 | From a checkout (`tools/emu`, `tools/hw`); not on PyPI yet |
 

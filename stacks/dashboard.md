@@ -56,7 +56,7 @@ its own container on `p4n4-net`, set `P4N4_API_UPSTREAM=http://p4n4-api:8000` in
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DASHBOARD_VERSION` | `1.3.0` | Image tag (a p4n4-dashboard release) |
+| `DASHBOARD_VERSION` | `1.5.0` | Image tag (a p4n4-dashboard release) |
 | `DASHBOARD_PORT` | `8088` | Host port |
 | `DASHBOARD_BIND` | `0.0.0.0` | Interface to publish on; a LAN address keeps it off other networks |
 | `DASHBOARD_HOST` | *(empty)* | Host the browser uses for Grafana and direct links; empty means the page's host |
