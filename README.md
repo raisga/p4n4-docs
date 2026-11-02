@@ -77,6 +77,7 @@ See [Getting Started](getting-started.md) for the full walkthrough, including ma
 | [Incident Investigator: Phase 2](decisions/agent-phase2.md) | Actions for the durable agent: unsafe replay, operation IDs, human approval (design note) |
 | [System 1](decisions/system1.md) | Fast typed decisions with Laya: spike results, rules of use, architecture, phases (S1, S2, the S3 infrastructure and S4 implemented) |
 | [Recording in core (draft)](decisions/recording.md) | `p4n4 record`: demo videos per theme, role and viewport from declarative scenarios |
+| [Rust rewrite spikes](decisions/spikes/README.md) | The P0 spikes of the Rust rewrite: what each decides, its status, and a note per spike |
 | [Releasing](project/releasing.md) | Release set order, what to do before publishing, `gh release` commands, how to write a release body |
 
 ---
