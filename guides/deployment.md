@@ -483,7 +483,7 @@ services:
 
 - **Emulator.** `p4n4-emu up --profile <p>` at the project root starts every layer in dependency order, with the combined limits scaled down to fit one device. Use `--stack ai --native` to keep Ollama out of QEMU.
 - **Secrets.** `INFLUXDB_TOKEN`, `INFLUXDB_ORG` and `INFLUXDB_BUCKET` must be identical in every layer's `.env`. `p4n4 init` writes them identically; when you change one by hand, change it in every file.
-- **Overrides.** Write one `docker-compose.override.yml` **per layer directory**. Put Caddy in `iot/`. Bind the ai layer's agent (`11434`) to `127.0.0.1` in `ai/docker-compose.override.yml`, since it has no authentication.
+- **Overrides.** Write one `docker-compose.override.yml` **per layer directory**. Put Caddy in `iot/`. The ai layer's agent (`11434`) has no authentication: leave `AGENT_BIND` in `ai/.env` at `127.0.0.1`, the default.
 - **Start order.** iot first, because it creates `p4n4-net`, and stop in reverse: `p4n4 up` / `p4n4 down`, or `(cd iot && docker compose up -d) && (cd ai && docker compose up -d)`.
 - **Sizing.** On first start, Ollama pulls `OLLAMA_MODEL` (`gemma4:e2b`, about 4.6 GB). Leave disk room for it, and expect CPU-only inference on CAX/E2 machines to answer in seconds rather than milliseconds.
 

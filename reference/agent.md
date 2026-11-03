@@ -58,7 +58,7 @@ The tools see the alert through the incident's document, never through model tex
 
 | Topic | Direction | Payload |
 |-------|-----------|---------|
-| `alerts/<device>/anomaly` (`AGENT_ALERT_TOPIC`) | in, QoS 1, persistent session | `{"device", "anomaly_score", "label", "threshold", "timestamp"}`. The topic names the device; `timestamp` is ISO 8601 or epoch s/ms/µs/ns |
+| `alerts/<device>/anomaly` (`AGENT_ALERT_TOPIC`) | in, QoS 1, persistent session | `{"device", "anomaly_score", "label", "threshold", "timestamp"}`. The topic names the device; `timestamp` is ISO 8601 or epoch s/ms/µs/ns. Without one, or with one before 2000 or after 9999, the alert counts from its arrival |
 | `agent/investigations/<device>` (`AGENT_RESULT_TOPIC`) | out, QoS 1, not retained | `{"incident", "device", "status": "answered" \| "failed", "cause", "confidence", "summary", "error", "alert_at", "started_at", "finished_at"}` |
 
 InfluxDB: one point per finding in `INFLUXDB_BUCKET_AI_EVENTS` (`ai_events`), measurement
@@ -137,7 +137,9 @@ before anything acts on them.
   deduplicate on, and the InfluxDB point has the same time and tags, so it is overwritten.
 - **Crash loops.** Pi Durable 1.3.0 has no limit on how often a task cut short by a crash
   runs again (later releases add one). The agent's tools are HTTP requests, which can't
-  crash the process; a store error ends the agent, and Docker restarts it.
+  crash the process; a store error ends the agent, and Docker restarts it. An
+  investigation that can't resume on start ends `failed` instead of stopping the agent,
+  which would only restart into it again.
 
 ## Context and compaction
 
