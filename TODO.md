@@ -1,8 +1,11 @@
 # TODO — p4n4 code review findings
 
-Findings from a code review of raisga/p4n4 `main` at `512e385` and its public submodules, written 2026-11-02. Section 2 has one checkbox per finding: tick it when the fix lands. Section 3 gives the evidence and a fix for each, and section 5 the order to start in.
+Findings from a code review of raisga/p4n4 `main` at `512e385` and its public submodules, written 2026-11-02. Section 2 has one checkbox per finding: tick it when the fix is verified. Section 3 gives the evidence and a fix for each, and section 5 the order to start in.
 
 Paths are relative to the p4n4 superproject root, not to this repo, and line numbers are at the submodule commits that `512e385` pins (section 6).
+
+Resolution notes distinguish committed fixes from verified, uncommitted changes.
+The original review evidence and severity counts are retained below.
 
 ## 1. Summary
 
@@ -14,12 +17,15 @@ Grouped by severity. Each entry gives the ID and a one-line description, then th
 
 ### High (3)
 
-- [ ] **H1.** go2rtc template publishes an unauthenticated, writable API on :1984 that allows code execution
+- [x] **H1.** go2rtc template publishes an unauthenticated, writable API on :1984 that allows code execution
   - Confirmed · `tools/templates/projects/mqtt-influx-grafana-ollama-go2rtc/extras/docker-compose.yml:20`; `extras/config/go2rtc/video.sh:17-18,22,59-60,70`
-- [ ] **H2.** Cold-chain ack links are signed with a public or empty key, so anyone who can reach n8n can forge an ack and stop escalation
+  - Fixed in `tools/templates` commit `a135c3d`.
+- [x] **H2.** Cold-chain ack links are signed with a public or empty key, so anyone who can reach n8n can forge an ack and stop escalation
   - Confirmed · `tools/templates/projects/mqtt-influx-grafana-n8n/ai/.env.example:51`; `ai/docker-compose.yml:18,54`; `ai/config/n8n/workflows/acknowledge.json:129`
-- [ ] **H3.** One anonymous MQTT alert with a huge timestamp crash-loops the incident agent permanently
+  - Fixed in `tools/templates` commit `a135c3d`.
+- [x] **H3.** One anonymous MQTT alert with a huge timestamp crash-loops the incident agent permanently
   - Confirmed · `stacks/ai/agent/src/request-id.ts:69`; `investigator.ts:50,270,304`; `main.ts:93,135-136`
+  - Fixed in `stacks/ai` commit `3fb39f6`.
 
 ### Medium (21)
 
@@ -27,8 +33,9 @@ Grouped by severity. Each entry gives the ID and a one-line description, then th
   - Confirmed · `stacks/ai/docker-compose.yml:83-87`; `cli/p4n4/commands/init.py:357,417`
 - [ ] **M2.** Compose fallbacks bring back the public example secrets when `.env` is missing or incomplete
   - Confirmed · `stacks/iot/docker-compose.yml:89,93,186`; `stacks/ai/docker-compose.yml:56,88,105`; `stacks/iot/Makefile:80-82`
-- [ ] **M3.** MQTT accepts anonymous clients by default, even after `p4n4 init`
+- [x] **M3.** MQTT accepts anonymous clients by default, even after `p4n4 init`
   - Confirmed · `stacks/iot/config/mosquitto/bridge.sh:118-128,147,179`; `cli/p4n4/commands/init.py:399`
+  - Verified working-tree fix; compatibility policy and validation below.
 - [ ] **M4.** Sign-in rate limit trusts X-Forwarded-For from all of 172.16.0.0/12
   - Confirmed · `api/docker-compose.yml:34`; `api/p4n4_api/main.py:101-107`; `dashboard/docker/nginx/proxy_common.conf:4`
 - [ ] **M5.** Open SSE streams outlive sign-out, password changes and user removal
@@ -57,8 +64,9 @@ Grouped by severity. Each entry gives the ID and a one-line description, then th
   - Confirmed · `scripts/dev:89,162-165,235-236`
 - [ ] **M17.** The dashboard's default API upstream doesn't reach the API container on Linux
   - Confirmed (runtime Suspected) · `dashboard/docker-compose.yml:16,26-27`
-- [ ] **M18.** Ollama templates publish an unauthenticated Ollama proxy with InfluxDB tools on all interfaces
+- [x] **M18.** Ollama templates publish an unauthenticated Ollama proxy with InfluxDB tools on all interfaces
   - Confirmed · `tools/templates/projects/mqtt-influx-grafana-ollama/ai/docker-compose.yml:19`; `ai/agent/agent.py:569,612`
+  - Fixed in `tools/templates` commit `a135c3d`.
 - [ ] **M19.** ONNX runner reads only `outputs[0]`, so scikit-learn classifiers always report the first class at 100%
   - Confirmed · `stacks/ai/runner/runner.py:500-503`
 - [ ] **M20.** Only the IoT stack rotates container logs
@@ -80,8 +88,9 @@ Grouped by severity. Each entry gives the ID and a one-line description, then th
   - Confirmed · `dashboard/lib/pages/login_page.dart:217,266`
 - [ ] **L6.** Alloy's `:ro` Docker socket mount still gives full Docker API access
   - Confirmed · `stacks/iot/docker-compose.yml:281,293`
-- [ ] **L7.** Anonymous clients can grow the feedback files without limit
+- [x] **L7.** Anonymous clients can grow the feedback files without limit
   - Confirmed · `stacks/iot/config/node-red/flows/flows.json:664,724-728`
+  - Verified working-tree fix: MQTT packet cap and bounded feedback persistence below.
 - [ ] **L8.** Default binds publish more than the trusted-network stance needs
   - Confirmed · `stacks/iot/docker-compose.yml:38,85,126,183,315`
 - [ ] **L9.** The ei-runner image is unhardened and built from floating inputs
@@ -98,6 +107,9 @@ Grouped by severity. Each entry gives the ID and a one-line description, then th
   - Confirmed · `lib/.github/workflows/publish.yml:19-20`
 - [ ] **L15.** The template validator and CI have gaps
   - Confirmed · `tools/templates/scripts/validate.py:128`
+  - Follow-up validation: the greenhouse smoke bootstrap also omits its two
+    archive output directories. M3's end-to-end check pre-created them only in
+    the isolated fixture; this separate setup gap remains open.
 - [ ] **L16.** The AWS emulator's TTL is lost on reboot
   - Confirmed · `tools/emu/terraform/aws/emulator/cloud-init.yaml.tftpl:11-12`
 - [ ] **L17.** Disk limits may target the client's disk instead of the engine's
@@ -314,6 +326,32 @@ Confirmed · `stacks/iot/config/mosquitto/bridge.sh:118-128,147,179`, `stacks/io
   - Have `init` generate `MQTT_USER` and `MQTT_PASSWORD`, plus a read-only ACL for dashboards, and pass them to Telegraf, Node-RED, n8n and the agent.
   - Port the core's opt-in auth to the templates.
   - Apply `VALVE_MAX_RUN` to forced-on valves too.
+
+- **Resolution (verified working tree, not yet committed):**
+  - New CLI-created IoT projects get independent publishing and read-only passwords.
+    Device listeners require them; the Docker-only 1883 listener intentionally
+    stays anonymous and unpublished. This compatibility policy replaces the
+    original proposal to require credentials from every internal service.
+  - All seven templates now support the same opt-in device logins, with host 1883
+    mapped to container 1884. Empty passwords retain anonymous demo mode.
+  - Read-only ACLs are generated at startup. Custom ACLs must use per-user writes;
+    global write patterns are refused with a read-only account. The ACL example
+    now follows that rule.
+  - Local broker passwords rotate with matching local AI connections; differing
+    usernames, passwords and external hosts are preserved.
+  - Forced-on valves obey maximum runtime and lockout. Continuous-on time is
+    retained across mode changes and command recovery, including when a retained
+    mode arrives first. Unknown or invalid start times fail closed.
+  - Verified: 40 broker integration checks across core and all seven templates,
+    17 focused CLI/lib regressions, six valve-control unit tests, Ruff and Linux
+    template validation. Broker checks verify actual retained-message integrity,
+    not just client exit codes. The Windows validator's executable-bit failures
+    were checked in an isolated Linux fixture using Git's recorded file modes;
+    Compose configuration was also validated on the host.
+  - The greenhouse end-to-end smoke passed, including forced-on cutoff and
+    lockout, stores, external bridging and Grafana queries, after pre-creating
+    `data/archive/lineprotocol` and `data/archive/raw` in its isolated fixture
+    (the existing bootstrap gap noted under L15).
 
 #### M4. The sign-in rate limit trusts X-Forwarded-For from all of 172.16.0.0/12
 Confirmed · `api/docker-compose.yml:34`, `api/p4n4_api/main.py:101-107`, `dashboard/docker/nginx/proxy_common.conf:4`
@@ -567,6 +605,19 @@ Confirmed · `stacks/iot/config/node-red/flows/flows.json:664,724-728`
   - No Mosquitto config sets `max_packet_size`.
   - With the anonymous broker (M3), any LAN client can fill the disk.
 - **Fix:** set `max_packet_size` in the config bridge.sh generates, and validate and cap or rotate the files in the flow.
+
+- **Resolution (verified working tree, not yet committed):**
+  - Core and template MQTT packets are capped at 4 MiB.
+  - Core Node-RED saves feedback through a bounded helper: 64 KiB per JSON-line
+    example, 1 MiB per set and 32 set files. Set names and existing paths are
+    validated before appending.
+  - Full storage raises an explicit Node-RED error without deleting examples or
+    blocking the separate InfluxDB feedback point. Export/redact the examples and
+    remove the exported set file to make room.
+  - Five focused feedback tests pass, covering UTF-8 output, invalid names,
+    payload/file/set limits, preservation of existing data and error reporting.
+    The broker integration checks also confirm oversized publications cannot
+    replace retained data.
 
 #### L8. Default binds publish more than the trusted-network stance needs
 Confirmed · `stacks/iot/docker-compose.yml:38,85,126,183,315`, `dashboard/docker-compose.yml:14`, templates (e.g. `tools/templates/projects/mqtt-influx-grafana/docker-compose.yml:59`)
