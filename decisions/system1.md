@@ -1207,7 +1207,10 @@ lang}`. `id` is the decision's. `p4n4_lib.system1.feedback_payload` builds one.
   own volume, never to InfluxDB. `p4n4 ai system1 feedback <set>` turns those into
   evaluation lines (`source: feedback`, one per decision, with every confirmed question
   and its `lang`), printing them or appending the new ones with `--append`. No-answer keys
-  are dropped. Redact names before appending (§9).
+  are dropped. Saves are capped at 64 KiB per example, 1 MiB per set and 32 set files.
+  At a limit, Node-RED reports an error without changing the existing file or the
+  InfluxDB feedback point. Export, redact names (§9), then remove the exported set's
+  file from the Node-RED container to make room; old examples are not rotated away.
 
 ### 15.5 The `p4n4-system1` subflow
 

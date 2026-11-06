@@ -68,7 +68,7 @@ runs with `P4N4_API_AUTH=off` or can't be reached, so keep auth on. For its web 
 
 ## Mosquitto authentication
 
-The broker has two kinds of listener. Its entrypoint (`config/mosquitto/entrypoint.sh`)
+The broker has two kinds of listener. Its entrypoint (`config/mosquitto/bridge.sh`)
 writes them from the IoT `.env` into `/mosquitto/conf.d` at every start, so passwords live
 only in `.env` and `config/mosquitto/passwd`, never in `mosquitto.conf`.
 
@@ -87,6 +87,12 @@ MQTT_USER=devices
 MQTT_PASSWORD=<a long random value>
 ```
 
+`p4n4 init` does this automatically for new IoT projects. It also generates a
+separate `MQTT_READONLY_USER` / `MQTT_READONLY_PASSWORD` for dashboards and other
+read-only tools. Both accounts live in the IoT `.env`; devices need the publishing
+account, not the read-only one. `p4n4 secret rotate` rotates the local broker's
+passwords and matching AI settings, so update devices and browser clients too.
+
 With `MQTT_PASSWORD` empty, the device listeners accept anonymous clients: fine on a
 workstation, not on a network you don't control. The stack's own services are unaffected
 either way, since they use the internal listener.
@@ -95,7 +101,9 @@ either way, since they use the internal listener.
   (`make mqtt-user NAME=<name>` asks for the password). The file is read only while
   `MQTT_PASSWORD` is set; until then the broker logs that it ignores it.
 - **Topic access:** copy `config/mosquitto/acl.example` to `config/mosquitto/acl` to limit
-  what each account may read and write. `MQTT_USER` always gets every topic.
+  what each account may read and write, using a user block per device. `MQTT_USER`
+  always gets every topic. With `MQTT_READONLY_USER`, global write patterns are
+  refused because they would let the read-only account publish too.
 - **TLS:** put the server certificate (chain) and key in `config/mosquitto/certs/` and set
   `MQTT_TLS_CERT_FILE` and `MQTT_TLS_KEY_FILE` to their names. The entrypoint copies them so
   the broker can still read them after it drops root. Restart the broker after renewing.
@@ -108,6 +116,17 @@ host or the LAN (the [hardware daemon](../reference/hardware.md#p4n4_hwdpy-hardw
 it's on. The inference runner's `MQTT_USER` / `MQTT_PASSWORD` in the AI `.env` are needed only
 when it talks to a broker other than the stack's own.
 
+The seven project templates support the same opt-in device logins in their IoT
+`.env` (the project-root `.env` for single-layer templates). They still allow
+anonymous device access when `MQTT_PASSWORD` is empty. Container clients use the
+unpublished port 1883 and remain anonymous; only trusted containers should join
+`p4n4-net`.
+
+MQTT packets are capped at 4 MiB. The core's saved System 1 feedback examples are
+capped at 64 KiB each, 1 MiB per set and 32 sets. Export and review examples before
+removing a full set file; Node-RED reports rejected saves rather than growing the
+files indefinitely.
+
 ## Secret rotation
 
 `p4n4 secret rotate` replaces the secrets their services read at every start, then the
@@ -115,13 +134,17 @@ next `p4n4 up` applies them:
 
 | Layer | Rotated by `p4n4 secret rotate` | Changed in the service (setup-only) |
 |-------|---------------------------------|-------------------------------------|
-| iot | `NODE_RED_PASSWORD` | `INFLUXDB_PASSWORD`, `INFLUXDB_TOKEN`, `GRAFANA_PASSWORD` |
+| iot | `NODE_RED_PASSWORD`, `MQTT_PASSWORD`, `MQTT_READONLY_PASSWORD` | `INFLUXDB_PASSWORD`, `INFLUXDB_TOKEN`, `GRAFANA_PASSWORD` |
 | ai | `LETTA_SERVER_PASSWORD` | `N8N_ENCRYPTION_KEY` (and the unused `N8N_BASIC_AUTH_PASSWORD`) |
 
 ```bash
 p4n4 secret rotate
 p4n4 down && p4n4 up
 ```
+
+MQTT rotation requires a configured local IoT broker. Matching AI connections
+using `MQTT_HOST=mqtt` or `p4n4-mqtt` are updated too; differing usernames,
+passwords and external hosts are preserved. Update device and dashboard logins.
 
 The setup-only secrets are read once, when the service first creates its data. A new value
 in `.env` alone would lock every client out of InfluxDB and Grafana, and n8n refuses to
